@@ -1,13 +1,29 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'services/hive_service.dart';
+import 'services/student_service.dart';
+import 'services/attendance_service.dart';
+
+late final StudentService studentService;
+late final AttendanceService attendanceService;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialisation de Hive via HiveService
+  // 1. Initialisation de Hive via HiveService
   await HiveService.init();
 
+  // 2. Récupération des box ouvertes
+  final hive = HiveService.instance;
+
+  // 3. Création des services
+  studentService = StudentService(hive.studentsBox);
+  attendanceService = AttendanceService(hive.attendancesBox);
+
+  // 4. Pré-remplir les étudiants si la box est vide
+  await studentService.initStudentsIfEmpty();
+
+  // 5. Lancer l'app
   runApp(const AbsFlowApp());
 }
 
@@ -33,17 +49,24 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Exemple : accès au service (si tu en as besoin ici)
-    final hive = HiveService.instance;
+    // Exemple d'utilisation des services globaux :
+    final students = studentService.getStudents();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('AbsFlow - Accueil'),
       ),
-      body: const Center(
-        child: Text(
-          'Bienvenue dans AbsFlow 👋\nHive est initialisé et prêt.',
-          textAlign: TextAlign.center,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Bienvenue dans AbsFlow 👋\nHive est initialisé et prêt.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Text('Nombre d\'étudiants : ${students.length}'),
+          ],
         ),
       ),
     );
