@@ -1,7 +1,11 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import 'screens/add_cours.dart';
 import 'screens/students_list.dart';
+=======
+import 'screens/prise_appel.dart';
+>>>>>>> mariem006
 import 'services/hive_service.dart';
 import 'services/student_service.dart';
 import 'services/attendance_service.dart';
@@ -41,13 +45,18 @@ class AbsFlowApp extends StatelessWidget {
         useMaterial3: true,
         colorSchemeSeed: Colors.blue,
       ),
+<<<<<<< HEAD
       home: const AddCoursPage () ,
+=======
+      home: const PriseAppelPage(),
+>>>>>>> mariem006
     );
   }
 }
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
+  
 
   @override
   Widget build(BuildContext context) {
@@ -73,4 +82,21 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
+  
 }
+class DebugTestPage extends StatelessWidget {
+  const DebugTestPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: Text(
+          'Ça marche ✅\n(main + Hive + MaterialApp OK)',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
+
