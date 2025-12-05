@@ -1,5 +1,7 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
+import 'screens/add_cours.dart';
+import 'screens/students_list.dart';
 import 'services/hive_service.dart';
 import 'services/student_service.dart';
 import 'services/attendance_service.dart';
@@ -39,7 +41,7 @@ class AbsFlowApp extends StatelessWidget {
         useMaterial3: true,
         colorSchemeSeed: Colors.blue,
       ),
-      home: const HomePage(),
+      home: const AddCoursPage () ,
     );
   }
 }
