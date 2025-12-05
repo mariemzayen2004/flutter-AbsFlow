@@ -1,9 +1,6 @@
-// student_service.dart
 import 'package:hive/hive.dart';
 
 import '../models/student/student.dart';
-
-
 
 class StudentService {
   final Box<Student> _studentBox;
@@ -22,12 +19,12 @@ class StudentService {
     }
   }
 
-  /// 1️⃣ getStudents()
+  // getStudents()
   List<Student> getStudents() {
     return _studentBox.values.toList();
   }
 
-  /// 2️⃣ getStudentById(studentId)
+  // getStudentById(studentId)
   Student? getStudentById(int studentId) {
     try {
       return _studentBox.values.firstWhere((s) => s.id == studentId);
@@ -36,14 +33,14 @@ class StudentService {
     }
   }
 
-  /// 3️⃣ getStudentsByGroup(groupId)
+  // getStudentsByGroup(groupId)
   List<Student> getStudentsByGroup(int groupId) {
     return _studentBox.values
         .where((s) => s.groupId == groupId)
         .toList();
   }
 
-  /// 4️⃣ filterStudents(...)
+  // filterStudents(...)
   List<Student> filterStudents({
     String? nom,
     String? matricule,
