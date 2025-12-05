@@ -65,4 +65,6 @@ class Subject extends HiveObject {
       groupIds: [1, 2],
     ),
   ];
+
+  static get initialSubjects => null;
 }
