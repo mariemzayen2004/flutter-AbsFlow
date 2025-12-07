@@ -2,41 +2,35 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/group/group.dart';
 
 class GroupesService {
-  static final GroupesService _instance = GroupesService._internal();
+  final Box<Group> _groupsBox;
 
-  factory GroupesService() => _instance;
+  GroupesService(this._groupsBox);
 
-  GroupesService._internal();
-
-  final String _groupsBoxName = "groups";
-  Box<Group>? _groupsBox;
-
-  /// ----------------------------------------------------------
-  /// Ouvre la box Hive si elle n'est pas déjà ouverte
-  /// ----------------------------------------------------------
-  Future<Box<Group>> _openGroupsBox() async {
-    if (_groupsBox != null && _groupsBox!.isOpen) {
-      return _groupsBox!;
+  // Méthode pour insérer les groupes par défaut dans la box
+  Future<void> insertGroups() async {
+    // Vérifie si la Box est vide avant d'ajouter des groupes
+    if (_groupsBox.isEmpty) {
+      // Ajouter les groupes de test
+      for (var group in Group.initialGroups) {
+        await _groupsBox.add(group);  // Ajoute chaque groupe
+      }
+      print('Groupes ajoutés dans la box: ${_groupsBox.length}');
+    } else {
+      print('La Box contient déjà des groupes.');
     }
-    _groupsBox = await Hive.openBox<Group>(_groupsBoxName);
-    return _groupsBox!;
   }
 
-  /// ----------------------------------------------------------
-  /// 1️⃣ getGroupes() : Retourne la liste de TOUS les groupes
-  /// ----------------------------------------------------------
+  // getGroupes() : Retourne la liste de TOUS les groupes
   Future<List<Group>> getGroupes() async {
-    final box = await _openGroupsBox();
-    return box.values.toList();
+    print('Groupes dans la box: ${_groupsBox.length}');
+    return _groupsBox.values.toList();  // Retourner tous les groupes dans la Box
   }
 
-  /// ----------------------------------------------------------
-  /// 2️⃣ getGroupeById(id) : Retourne un groupe via son champ id
-  /// ----------------------------------------------------------
+  // getGroupeById(id) : Retourne un groupe via son champ id
   Future<Group?> getGroupeById(int id) async {
-    final box = await _openGroupsBox();
+
     try {
-      return box.values
+      return _groupsBox.values
           .cast<Group?>()
           .firstWhere((g) => g!.id == id, orElse: () => null);
     } catch (e) {
@@ -52,8 +46,7 @@ class GroupesService {
     int? niveau,
     int? numGroup,
   }) async {
-    final box = await _openGroupsBox();
-    final groupes = box.values.toList();
+    final groupes = _groupsBox.values.toList();
 
     return groupes.where((g) {
       if (filiere != null && g.filiere != filiere) return false;

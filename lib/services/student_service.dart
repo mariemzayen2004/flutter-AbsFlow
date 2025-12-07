@@ -7,8 +7,10 @@ class StudentService {
 
   StudentService(this._studentBox);
 
-  /// À appeler au démarrage de l'appli
-  /// → si la box est vide, on la remplit avec Student.initialStudents
+  // Getter pour _studentBox
+  Box<Student> get studentBox => _studentBox;
+
+  // À appeler au démarrage de l'appli
   Future<void> initStudentsIfEmpty() async {
     if (_studentBox.isNotEmpty) {
       return; // il y a déjà des données, on ne touche à rien

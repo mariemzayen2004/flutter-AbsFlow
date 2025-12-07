@@ -3,10 +3,8 @@ part 'attendance.g.dart';
 
 @HiveType(typeId: 5)
 class Attendance extends HiveObject {
-  @HiveField(0)
-  int id;
 
-  @HiveField(1)
+  @HiveField(0)
   int sessionId;
 
   @HiveField(2)
@@ -25,7 +23,6 @@ class Attendance extends HiveObject {
   bool justifie;
 
   Attendance({
-    required this.id,
     required this.sessionId,
     required this.studentId,
     required this.present,

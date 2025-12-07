@@ -1,19 +1,20 @@
 import 'package:hive/hive.dart';
-
 import '../models/session/session.dart';
 
 class SessionService {
-  static const String _boxName = 'sessionsBox';
+  final Box<Session> _sessionBox;
+
+  SessionService(this._sessionBox);
 
   // -------------------------------------------------------------
-  // Ouverture du Box Hive
+  // Ouverture de la Box Hive (déjà ouverte dans le constructeur)
   // -------------------------------------------------------------
-  Future<Box<Session>> _openBox() async {
-    return await Hive.openBox<Session>(_boxName);
+  Future<Box<Session>> _openSessionBox() async {
+    return _sessionBox;
   }
 
   // -------------------------------------------------------------
-  // 1️⃣ ajouterSession()
+  // 1️⃣ ajouterSession() : Créer une session et laisser Hive générer un ID
   // -------------------------------------------------------------
   Future<int> ajouterSession(
     int groupId,
@@ -22,12 +23,9 @@ class SessionService {
     DateTime heureDebut,
     DateTime heureFin,
   ) async {
-    final box = await _openBox();
-
-    final newId = DateTime.now().millisecondsSinceEpoch;
+    final box = await _openSessionBox();
 
     final session = Session(
-      id: newId,
       groupId: groupId,
       subjectId: subjectId,
       date: date,
@@ -35,15 +33,18 @@ class SessionService {
       heureFin: heureFin,
     );
 
-    await box.put(newId, session);
-    return newId;
+    // Utiliser box.add() pour ajouter la session sans spécifier d'ID
+    final key = await box.add(session);
+
+    // Retourner l'ID généré par Hive
+    return key;  // Hive génère un ID unique automatiquement
   }
 
   // -------------------------------------------------------------
   // 2️⃣ supprimerSession()
   // -------------------------------------------------------------
   Future<void> supprimerSession(int sessionId) async {
-    final box = await _openBox();
+    final box = await _openSessionBox();
 
     if (box.containsKey(sessionId)) {
       await box.delete(sessionId);
@@ -54,7 +55,7 @@ class SessionService {
   // 3️⃣ getSessionById()
   // -------------------------------------------------------------
   Future<Session?> getSessionById(int sessionId) async {
-    final box = await _openBox();
+    final box = await _openSessionBox();
     return box.get(sessionId);
   }
 
@@ -62,7 +63,7 @@ class SessionService {
   // 4️⃣ getSessions()
   // -------------------------------------------------------------
   Future<List<Session>> getSessions() async {
-    final box = await _openBox();
+    final box = await _openSessionBox();
     return box.values.toList();
   }
 
@@ -70,7 +71,7 @@ class SessionService {
   // 5️⃣ getSessionsByGroup()
   // -------------------------------------------------------------
   Future<List<Session>> getSessionsByGroup(int groupId) async {
-    final box = await _openBox();
+    final box = await _openSessionBox();
 
     return box.values
         .where((s) => s.groupId == groupId)
@@ -81,7 +82,7 @@ class SessionService {
   // 6️⃣ getSessionsBySubject()
   // -------------------------------------------------------------
   Future<List<Session>> getSessionsBySubject(int subjectId) async {
-    final box = await _openBox();
+    final box = await _openSessionBox();
 
     return box.values
         .where((s) => s.subjectId == subjectId)
@@ -97,7 +98,7 @@ class SessionService {
     int? groupId,
     int? subjectId,
   }) async {
-    final box = await _openBox();
+    final box = await _openSessionBox();
 
     return box.values.where((s) {
       final okDateDebut =

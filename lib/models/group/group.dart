@@ -22,7 +22,7 @@ class Group extends HiveObject {
     required this.niveau,
   });
   // Liste des groupes
-  static final List<Group> initialStudents = [
+  static final List<Group> initialGroups = [
     Group(
       id: 1,
       numGroup: 1,

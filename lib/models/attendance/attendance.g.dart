@@ -17,8 +17,7 @@ class AttendanceAdapter extends TypeAdapter<Attendance> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return Attendance(
-      id: fields[0] as int,
-      sessionId: fields[1] as int,
+      sessionId: fields[0] as int,
       studentId: fields[2] as int,
       present: fields[3] as bool,
       heuresManquees: fields[4] as int,
@@ -30,10 +29,8 @@ class AttendanceAdapter extends TypeAdapter<Attendance> {
   @override
   void write(BinaryWriter writer, Attendance obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(6)
       ..writeByte(0)
-      ..write(obj.id)
-      ..writeByte(1)
       ..write(obj.sessionId)
       ..writeByte(2)
       ..write(obj.studentId)
