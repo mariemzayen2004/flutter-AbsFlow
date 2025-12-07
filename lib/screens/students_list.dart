@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+// 🔹 Ajout des imports nécessaires
 import '../models/student/student.dart';
+import '../models/group/group.dart';
+import '../services/student_service.dart';
+import '../services/group_services.dart';
 
 class StudentsListPage extends StatefulWidget {
   const StudentsListPage({Key? key}) : super(key: key);
@@ -13,6 +17,54 @@ class _StudentsListPageState extends State<StudentsListPage> {
   final TextEditingController _searchController = TextEditingController();
   int? _selectedGroupId;
   String _searchQuery = '';
+  
+  // 🔹 Ajout des services
+  late StudentService _studentService;
+  late GroupesService _groupesService;
+  
+  // 🔹 Ajout des listes chargées depuis Hive
+  List<Group> _groupes = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeServices();
+  }
+
+  // 🔹 Initialisation des services et chargement des données
+  Future<void> _initializeServices() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Récupérer les boxes Hive
+      final studentsBox = await Hive.openBox<Student>('students');
+      final groupsBox = await Hive.openBox<Group>('groups');
+
+      // Initialiser les services
+      _studentService = StudentService(studentsBox);
+      _groupesService = GroupesService(groupsBox);
+
+      // Insérer les données initiales si nécessaire
+      await _studentService.initStudentsIfEmpty();
+      await _groupesService.insertGroups();
+
+      // Charger les groupes
+      final groupes = await _groupesService.getGroupes();
+
+      setState(() {
+        _groupes = groupes;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Erreur d\'initialisation: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -51,6 +103,17 @@ class _StudentsListPageState extends State<StudentsListPage> {
     }
   }
 
+  // 🔹 Méthode pour obtenir le nom complet du groupe
+  String _getGroupDisplayName(int groupId) {
+    final groupe = _groupes.firstWhere(
+      (g) => g.id == groupId,
+      orElse: () => Group(id: 0, numGroup: 0, filiere: 'Inconnu', niveau: 0),
+    );
+    
+    if (groupe.id == 0) return 'Groupe $groupId';
+    return 'G${groupe.numGroup} - ${groupe.filiere} ${groupe.niveau}A';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -66,34 +129,41 @@ class _StudentsListPageState extends State<StudentsListPage> {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
-      body: Column(
-        children: [
-          _buildSearchAndFilterSection(),
-          Expanded(
-            child: ValueListenableBuilder(
-              valueListenable: Hive.box<Student>('students').listenable(),
-              builder: (context, Box<Student> box, _) {
-                final allStudents = box.values.toList();
-                final filteredStudents = _filterStudents(allStudents);
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                _buildSearchAndFilterSection(),
+                Expanded(
+                  child: ValueListenableBuilder(
+                    valueListenable: Hive.box<Student>('students').listenable(),
+                    builder: (context, Box<Student> box, _) {
+                      final allStudents = box.values.toList();
+                      final filteredStudents = _filterStudents(allStudents);
 
-                if (filteredStudents.isEmpty) {
-                  return const Center(
-                    child: Text('Aucun étudiant trouvé'),
-                  );
-                }
+                      if (filteredStudents.isEmpty) {
+                        return const Center(
+                          child: Text('Aucun étudiant trouvé'),
+                        );
+                      }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: filteredStudents.length,
-                  itemBuilder: (context, index) {
-                    return StudentCard(student: filteredStudents[index]);
-                  },
-                );
-              },
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(8),
+                        itemCount: filteredStudents.length,
+                        itemBuilder: (context, index) {
+                          return StudentCard(
+                            student: filteredStudents[index],
+                            groupDisplayName: filteredStudents[index].groupId != null
+                                ? _getGroupDisplayName(filteredStudents[index].groupId!)
+                                : 'Non assigné',
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -151,21 +221,21 @@ class _StudentsListPageState extends State<StudentsListPage> {
                         },
                       ),
                       const SizedBox(width: 8),
-                      ...List.generate(3, (index) {
-                        final groupId = index + 1;
+                      // 🔹 Utilisation des groupes chargés depuis Hive
+                      ..._groupes.map((groupe) {
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: FilterChip(
-                            label: Text('Groupe $groupId'),
-                            selected: _selectedGroupId == groupId,
+                            label: Text('G${groupe.numGroup} - ${groupe.filiere} ${groupe.niveau}A'),
+                            selected: _selectedGroupId == groupe.id,
                             onSelected: (selected) {
                               setState(() {
-                                _selectedGroupId = selected ? groupId : null;
+                                _selectedGroupId = selected ? groupe.id : null;
                               });
                             },
                           ),
                         );
-                      }),
+                      }).toList(),
                     ],
                   ),
                 ),
@@ -180,8 +250,13 @@ class _StudentsListPageState extends State<StudentsListPage> {
 
 class StudentCard extends StatelessWidget {
   final Student student;
+  final String groupDisplayName; // 🔹 Ajout du paramètre
 
-  const StudentCard({Key? key, required this.student}) : super(key: key);
+  const StudentCard({
+    Key? key,
+    required this.student,
+    required this.groupDisplayName, // 🔹 Paramètre obligatoire
+  }) : super(key: key);
 
   String _getStudentStatus(Student student) {
     if (student.tauxAbsence >= 30) return 'Échec';
@@ -213,7 +288,10 @@ class StudentCard extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => StudentProfilePage(student: student),
+              builder: (context) => StudentProfilePage(
+                student: student,
+                groupDisplayName: groupDisplayName, // 🔹 Passer le nom du groupe
+              ),
             ),
           );
         },
@@ -258,8 +336,9 @@ class StudentCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
+                    // 🔹 Affichage du nom complet du groupe
                     Text(
-                      'Groupe: ${student.groupId ?? "Non assigné"}',
+                      groupDisplayName,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -318,8 +397,13 @@ class StudentCard extends StatelessWidget {
 
 class StudentProfilePage extends StatelessWidget {
   final Student student;
+  final String groupDisplayName; // 🔹 Ajout du paramètre
 
-  const StudentProfilePage({Key? key, required this.student}) : super(key: key);
+  const StudentProfilePage({
+    Key? key,
+    required this.student,
+    required this.groupDisplayName, // 🔹 Paramètre obligatoire
+  }) : super(key: key);
 
   String _getStudentStatus(Student student) {
     if (student.tauxAbsence >= 30) return 'Échec';
@@ -437,10 +521,11 @@ class StudentProfilePage extends StatelessWidget {
                     label: 'Matricule',
                     value: student.matricule,
                   ),
+                  // 🔹 Affichage du nom complet du groupe
                   InfoRow(
                     icon: Icons.group,
                     label: 'Groupe',
-                    value: 'Groupe ${student.groupId ?? "Non assigné"}',
+                    value: groupDisplayName,
                   ),
                   const Divider(height: 32),
                   const Text(
