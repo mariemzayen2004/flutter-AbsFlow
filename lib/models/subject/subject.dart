@@ -28,7 +28,7 @@ class Subject extends HiveObject {
   });
 
   // Liste des matières
-  static final List<Subject> initialStudents = [
+  static final List<Subject> initialSubjects = [
     Subject(
       id: 1,
       nom: 'Algorithmique et Programmation',
@@ -66,5 +66,4 @@ class Subject extends HiveObject {
     ),
   ];
 
-  static get initialSubjects => null;
 }

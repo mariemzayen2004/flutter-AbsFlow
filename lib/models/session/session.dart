@@ -3,27 +3,24 @@ part 'session.g.dart';
 
 @HiveType(typeId: 4)
 class Session extends HiveObject {
-  @HiveField(0)
-  int id;
 
-  @HiveField(1)
+  @HiveField(0)
   int groupId;
 
-  @HiveField(2)
+  @HiveField(1)
   int subjectId;
 
-  @HiveField(3)
+  @HiveField(2)
   DateTime date;
 
-  @HiveField(4)
+  @HiveField(3)
   DateTime heureDebut;
 
-  @HiveField(5)
+  @HiveField(4)
   DateTime heureFin;
 
 
   Session({
-    required this.id,
     required this.groupId,
     required this.subjectId,
     required this.date,

@@ -17,30 +17,27 @@ class SessionAdapter extends TypeAdapter<Session> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return Session(
-      id: fields[0] as int,
-      groupId: fields[1] as int,
-      subjectId: fields[2] as int,
-      date: fields[3] as DateTime,
-      heureDebut: fields[4] as DateTime,
-      heureFin: fields[5] as DateTime,
+      groupId: fields[0] as int,
+      subjectId: fields[1] as int,
+      date: fields[2] as DateTime,
+      heureDebut: fields[3] as DateTime,
+      heureFin: fields[4] as DateTime,
     );
   }
 
   @override
   void write(BinaryWriter writer, Session obj) {
     writer
-      ..writeByte(6)
-      ..writeByte(0)
-      ..write(obj.id)
-      ..writeByte(1)
-      ..write(obj.groupId)
-      ..writeByte(2)
-      ..write(obj.subjectId)
-      ..writeByte(3)
-      ..write(obj.date)
-      ..writeByte(4)
-      ..write(obj.heureDebut)
       ..writeByte(5)
+      ..writeByte(0)
+      ..write(obj.groupId)
+      ..writeByte(1)
+      ..write(obj.subjectId)
+      ..writeByte(2)
+      ..write(obj.date)
+      ..writeByte(3)
+      ..write(obj.heureDebut)
+      ..writeByte(4)
       ..write(obj.heureFin);
   }
 

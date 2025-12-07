@@ -2,16 +2,27 @@ import 'package:abs_flow/models/subject/subject.dart';
 import 'package:hive/hive.dart';
 
 class SubjectService {
-  SubjectService._();
 
-  static final SubjectService instance = SubjectService._();
+  final Box<Subject> _subjectBox;
+  SubjectService(this._subjectBox);
 
-  /// Box Hive déjà ouverte dans HiveService.init()
-  Box<Subject> get _box => Hive.box<Subject>('subjects');
+  // Méthode pour insérer les groupes par défaut dans la box
+  Future<void> insertSubjects() async {
+    // Vérifie si la Box est vide avant d'ajouter des groupes
+    if (_subjectBox.isEmpty) {
+
+      for (var subject in Subject.initialSubjects) {
+        await _subjectBox.add(subject);  // Ajoute chaque groupe
+      }
+      print('Matières ajoutés dans la box: ${_subjectBox.length}');
+    } else {
+      print('La Box contient déjà des Matières.');
+    }
+  }
 
   // Liste de toutes les matières
   List<Subject> getSubjects() {
-    return _box.values.toList();
+    return _subjectBox.values.toList();
   }
 
   // Détails d’une matière par id
@@ -21,7 +32,7 @@ class SubjectService {
 
     // 🔹 Option 2 : si l'id est un champ du modèle Subject
     try {
-      return _box.values.firstWhere((s) => s.id == subjectId);
+      return _subjectBox.values.firstWhere((s) => s.id == subjectId);
     } catch (_) {
       return null; // si pas trouvé
     }
@@ -29,7 +40,7 @@ class SubjectService {
 
   // Matières d’un groupe pour la prise d’appel
   List<Subject> getSubjectsByGroup(int groupId) {
-    return _box.values
+    return _subjectBox.values
         .where((s) => s.groupIds.contains(groupId))
         .toList();
   }

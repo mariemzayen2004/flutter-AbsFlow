@@ -14,7 +14,7 @@ class HiveService {
   HiveService._(); // constructeur privé
   static final HiveService instance = HiveService._();
 
-  // 🔹 Boxes accessibles dans toute l'application
+  // Boxes accessibles dans toute l'application
   late Box<Student> studentsBox;
   late Box<Group> groupsBox;
   late Box<Subject> subjectsBox;
@@ -23,7 +23,7 @@ class HiveService {
   late Box<AlertModel> alertsBox;
   late Box<SettingsModel> settingsBox;
 
-  /// À appeler UNE SEULE FOIS dans main()
+  // À appeler UNE SEULE FOIS dans main()
   static Future<void> init() async {
     // 1) Initialiser Hive pour Flutter
     await Hive.initFlutter();
@@ -36,6 +36,7 @@ class HiveService {
     Hive.registerAdapter(AttendanceAdapter());
     Hive.registerAdapter(AlertModelAdapter());
     Hive.registerAdapter(SettingsModelAdapter());
+    Hive.registerAdapter(ModeAffichageAdapter());
 
     // 3) Ouvrir les box
     final s = HiveService.instance;

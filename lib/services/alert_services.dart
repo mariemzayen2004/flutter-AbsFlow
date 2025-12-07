@@ -1,17 +1,21 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/alert/alert.dart';
 import '../models/student/student.dart';
+import 'student_service.dart';
 
 class AlertService {
-  final String _alertBoxName = "alerts";
-  final String _studentBoxName = "students";
+  final Box<AlertModel> _alertBox;
+  final StudentService _studentService;
+
+  // Constructeur avec le Box pour AlertModel et StudentService
+  AlertService(this._alertBox, this._studentService);
 
   Future<Box<AlertModel>> _openAlertBox() async {
-    return await Hive.openBox<AlertModel>(_alertBoxName);
+    return _alertBox;
   }
 
   Future<Box<Student>> _openStudentBox() async {
-    return await Hive.openBox<Student>(_studentBoxName);
+    return _studentService.studentBox;
   }
 
   /// ----------------------------------------------------------

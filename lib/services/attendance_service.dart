@@ -7,8 +7,7 @@ class AttendanceService {
   AttendanceService(this._attendanceBox);
 
   /// 1️⃣ Ajouter une présence/absence lors de la prise d’appel
-  Future<int> ajouterAttendancePourSession(
-    int id,
+  Future<void> ajouterAttendancePourSession(
     int sessionId,
     int studentId,
     bool present, [
@@ -18,7 +17,6 @@ class AttendanceService {
     final effectiveHeuresManquees = present ? 0 : heuresManquees;
 
     final attendance = Attendance(
-      id: id,
       sessionId: sessionId,
       studentId: studentId,
       present: present,
@@ -27,8 +25,8 @@ class AttendanceService {
       justifie: false,
     );
 
-    final key = await _attendanceBox.add(attendance);
-    return key;
+    // Utiliser box.add() pour que Hive génère un ID valide automatiquement
+    await _attendanceBox.add(attendance);  // Ajout de la présence dans la box sans spécifier d'ID
   }
 
   // 2️⃣ Modifier une ligne de présence/absence
