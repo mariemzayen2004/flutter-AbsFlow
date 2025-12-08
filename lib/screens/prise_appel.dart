@@ -286,22 +286,6 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Prise d\'appel'),
-        actions: [
-          IconButton(
-            onPressed: () {
-              setState(() {
-                _modeAffichage = _modeAffichage == ModeAffichage.grille
-                    ? ModeAffichage.liste
-                    : ModeAffichage.grille;
-              });
-              _settingsService.mettreAJourModeAffichage(_modeAffichage);
-            },
-            icon: Icon(_modeAffichage == ModeAffichage.grille
-                ? Icons.view_list
-                : Icons.grid_view),
-            tooltip: 'Changer affichage',
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
@@ -363,70 +347,70 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
   // ---------------- Dropdown Box ----------------
 
   Widget _buildSelectionRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: DropdownButtonFormField<Group>(
-            value: _selectedGroup,
-            decoration: InputDecoration(
-              labelText: 'Groupe',
-              labelStyle: TextStyle(color: Colors.blueAccent),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.blueAccent, width: 2),
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+  return Row(
+    children: [
+      Expanded(
+        child: DropdownButtonFormField<Group>(
+          value: _selectedGroup,
+          decoration: InputDecoration(
+            labelText: 'Groupe',
+            labelStyle: TextStyle(color: Colors.blueAccent),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.blueAccent, width: 2),
             ),
-            items: _groupes
-                .map(
-                  (g) => DropdownMenuItem(
-                    value: g,
-                    child: Text(
-                      'G${g.numGroup} - ${g.filiere} ${g.niveau}',
-                      style: TextStyle(color: Colors.black),
-                    ),
-                  ),
-                )
-                .toList(),
-            onChanged: (group) => _onGroupSelected(group),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: DropdownButtonFormField<Subject>(
-            value: _selectedSubject,
-            decoration: InputDecoration(
-              labelText: 'Matière',
-              labelStyle: TextStyle(color: Colors.blueAccent),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.blueAccent, width: 2),
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-            items: _subjects
-                .map(
-                  (s) => DropdownMenuItem(
-                    value: s,
-                    child: Text(
-                      s.nom,
-                      style: TextStyle(color: Colors.black),
-                    ),
-                  ),
-                )
-                .toList(),
-            onChanged: (subject) {
-              setState(() {
-                _selectedSubject = subject;
-              });
-            },
           ),
+          items: _groupes
+              .map(
+                (g) => DropdownMenuItem(
+                  value: g,
+                  child: Text(
+                    'G${g.numGroup} - ${g.filiere} ${g.niveau}',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (group) => _onGroupSelected(group),
         ),
-      ],
-    );
-  }
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: DropdownButtonFormField<Subject>(
+          value: _selectedSubject,
+          decoration: InputDecoration(
+            labelText: 'Matière',
+            labelStyle: TextStyle(color: Colors.blueAccent),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.blueAccent, width: 2),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          items: _subjects
+              .map(
+                (s) => DropdownMenuItem(
+                  value: s,
+                  child: Text(
+                    s.nom,
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (subject) {
+            setState(() {
+              _selectedSubject = subject;
+            });
+          },
+        ),
+      ),
+    ],
+  );
+}
 
   Widget _buildTimeRow() {
     return Row(
@@ -467,40 +451,52 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
   }
 
   Widget _buildStudentsList() {
-    return ListView.builder(
-      itemCount: _students.length,
-      itemBuilder: (context, index) {
-        final student = _students[index];
-        final state = _presenceStates[student.id]!;
+    return SingleChildScrollView( // Ajout de SingleChildScrollView pour le défilement
+      child: Column(
+        children: List.generate(_students.length, (index) {
+          final student = _students[index];
+          final state = _presenceStates[student.id]!;
 
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          color: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildStudentHeader(student, state),
-                if (!state.present) const SizedBox(height: 8),
-                if (!state.present) _buildAbsenceFields(state),
-              ],
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-          ),
-        );
-      },
+            color: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildStudentHeader(student, state),
+                  if (!state.present) const SizedBox(height: 8),
+                  if (!state.present) _buildAbsenceFields(state),
+                ],
+              ),
+            ),
+          );
+        }),
+      ),
     );
   }
 
   Widget _buildStudentsGrid() {
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 3 / 2,
+  // Obtenir la largeur de l'écran
+  double screenWidth = MediaQuery.of(context).size.width;
+
+  // Ajuster le nombre de colonnes en fonction de la largeur de l'écran
+  int crossAxisCount = screenWidth < 600 ? 2 : 3; // Par exemple, 2 colonnes pour petits écrans, 3 pour grands écrans
+
+  // Calculer un ratio d'aspect adapté
+  double aspectRatio = screenWidth / 2 / 150; // Ajuster selon la taille de l'élément dans la grille
+
+  return SingleChildScrollView(  // Ajouter un scroll vertical si nécessaire
+    child: GridView.builder(
+      shrinkWrap: true,  // Permet à GridView de ne pas prendre plus d'espace que nécessaire
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        childAspectRatio: aspectRatio,  // Dynamique en fonction de l'écran
         mainAxisSpacing: 8,
         crossAxisSpacing: 8,
       ),
@@ -518,93 +514,160 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildStudentHeader(student, state),
-                const Spacer(),
+                const Spacer(), // Utiliser Spacer pour donner de l'espace
                 if (!state.present) _buildHeuresField(state),
               ],
             ),
           ),
         );
       },
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildStudentHeader(Student student, _StudentPresenceState state) {
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 30,
-          backgroundColor: Colors.blue[100],
-          backgroundImage: student.photoPath != null
-              ? AssetImage(student.photoPath!)
-              : null,
-          child: student.photoPath == null
-              ? Text(
-                  '${student.prenom[0]}${student.nom[0]}',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : null,
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${student.nom} ${student.prenom}',
+Widget _buildStudentHeader(Student student, _StudentPresenceState state) {
+  return Row(
+    children: [
+      CircleAvatar(
+        radius: 30,
+        backgroundColor: Colors.blue[100],
+        backgroundImage: student.photoPath != null
+            ? AssetImage(student.photoPath!)
+            : null,
+        child: student.photoPath == null
+            ? Text(
+                '${student.prenom[0]}${student.nom[0]}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
+                  overflow: TextOverflow.ellipsis,
                 ),
+              )
+            : null,
+      ),
+      const SizedBox(width: 16),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${student.nom} ${student.prenom}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Matricule: ${student.matricule}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Matricule: ${student.matricule}',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Groupe: ${student.groupId ?? "Non assigné"}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Groupe: ${student.groupId ?? "Non assigné"}',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Toggle button pour marquer Présent/Absent
+          ToggleButtons(
+            isSelected: [state.present, !state.present],
+            onPressed: (index) {
+              setState(() {
+                // Modifie l'état de 'Présent' ou 'Absent' en fonction du bouton sélectionné
+                state.present = index == 0; // Présent si index 0, Absent si index 1
+
+                if (state.present) {
+                  // Réinitialiser les heures manquées et les remarques si l'étudiant est présent
+                  state.heuresManquees = 0;
+                  state.remarque = '';
+                }
+              });
+            },
+            children: const [
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text('Présent'),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text('Absent'),
               ),
             ],
           ),
-        ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 6,
+          const SizedBox(height: 8),
+
+          // Afficher les heures manquées (si absent)
+          if (!state.present)
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Heures manquées',
+                border: OutlineInputBorder(),
+                isDense: true,
               ),
-              decoration: BoxDecoration(
-                color: _getStatusColor(state.present ? 'Normal' : 'Absent')
-                    .withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _getStatusColor(state.present ? 'Normal' : 'Absent')),
+              keyboardType: TextInputType.number,
+              onChanged: (value) {
+                final parsed = int.tryParse(value);
+                state.heuresManquees = parsed ?? 0;
+              },
+            ),
+          
+          const SizedBox(height: 8),
+          
+          // Champ pour ajouter une remarque (si absent)
+          if (!state.present)
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Remarque (optionnel)',
+                border: OutlineInputBorder(),
+                isDense: true,
               ),
-              child: Text(
-                state.present ? 'Présent' : 'Absent',
-                style: TextStyle(
-                  color: _getStatusColor(state.present ? 'Normal' : 'Absent'),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
+              minLines: 1,
+              maxLines: 2,
+              onChanged: (value) {
+                state.remarque = value;
+              },
+            ),
+          
+          const SizedBox(height: 8),
+
+          // Affichage de l'état (Présent/Absent)
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: _getStatusColor(state.present ? 'Normal' : 'Absent')
+                  .withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _getStatusColor(state.present ? 'Normal' : 'Absent')),
+            ),
+            child: Text(
+              state.present ? 'Présent' : 'Absent',
+              style: TextStyle(
+                color: _getStatusColor(state.present ? 'Normal' : 'Absent'),
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
               ),
             ),
-            const SizedBox(height: 8),
+          ),
+          const SizedBox(height: 8),
+          
+          // Affichage des heures manquées si nécessaire
+          if (!state.present)
             Text(
               '${state.heuresManquees}h',
               style: TextStyle(
@@ -612,11 +675,11 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                 color: Colors.grey[600],
               ),
             ),
-          ],
-        ),
-      ],
-    );
-  }
+        ],
+      ),
+    ],
+  );
+}
 
   Widget _buildAbsenceFields(_StudentPresenceState state) {
     return Column(
