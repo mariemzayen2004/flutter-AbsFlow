@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+// 🔹 Ajout des imports nécessaires
+import 'package:hive_flutter/hive_flutter.dart';
+import '../models/group/group.dart';
+import '../models/subject/subject.dart';
+import '../services/group_services.dart';
+import '../services/subjectService.dart';
 
 class AddCoursPage extends StatefulWidget {
   const AddCoursPage({Key? key}) : super(key: key);
@@ -15,24 +21,63 @@ class _AddCoursPageState extends State<AddCoursPage> {
   final _titreController = TextEditingController();
   final _descriptionController = TextEditingController();
   
-  String? _selectedMatiere;
+  // 🔹 Changement: utiliser Subject au lieu de String
+  Subject? _selectedMatiere;
   List<int> _selectedGroupes = [];
   List<AttachedFile> _attachedFiles = [];
   bool _sendNotification = true;
   bool _isLoading = false;
 
-  final List<String> _matieres = [
-    'Mathématiques',
-    'Physique',
-    'Informatique',
-    'Français',
-    'Anglais',
-    'Histoire-Géographie',
-    'Sciences',
-    'Philosophie',
-  ];
+  // 🔹 Ajout des services
+  late GroupesService _groupesService;
+  late SubjectService _subjectService;
+  
+  // 🔹 Ajout des listes chargées depuis Hive
+  List<Subject> _matieres = [];
+  List<Group> _groupes = [];
 
-  final List<int> _groupes = [1, 2, 3];
+  @override
+  void initState() {
+    super.initState();
+    _initializeServices();
+  }
+
+  // 🔹 Initialisation des services et chargement des données
+  Future<void> _initializeServices() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Récupérer les boxes Hive
+      final groupsBox = await Hive.openBox<Group>('groups');
+      final subjectsBox = await Hive.openBox<Subject>('subjects');
+
+      // Initialiser les services
+      _groupesService = GroupesService(groupsBox);
+      _subjectService = SubjectService(subjectsBox);
+
+      // Insérer les données initiales si nécessaire
+      await _groupesService.insertGroups();
+      await _subjectService.insertSubjects();
+
+      // Charger les données
+      final groupes = await _groupesService.getGroupes();
+      final matieres = _subjectService.getSubjects();
+
+      setState(() {
+        _groupes = groupes;
+        _matieres = matieres;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Erreur d\'initialisation: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      _showErrorSnackBar('Erreur lors du chargement des données');
+    }
+  }
 
   @override
   void dispose() {
@@ -47,7 +92,7 @@ class _AddCoursPageState extends State<AddCoursPage> {
         type: FileType.custom,
         allowedExtensions: ['pdf'],
         allowMultiple: false,
-        withData: true, // Important pour le web
+        withData: true,
       );
 
       if (result != null) {
@@ -57,10 +102,10 @@ class _AddCoursPageState extends State<AddCoursPage> {
           _attachedFiles.add(
             AttachedFile(
               name: platformFile.name,
-              path: platformFile.path ?? '', // Peut être vide sur web
+              path: platformFile.path ?? '',
               type: FileType.custom,
               size: platformFile.size,
-              bytes: platformFile.bytes, // Stocker les bytes pour le web
+              bytes: platformFile.bytes,
             ),
           );
         });
@@ -76,7 +121,7 @@ class _AddCoursPageState extends State<AddCoursPage> {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         allowMultiple: false,
-        withData: true, // Important pour le web
+        withData: true,
       );
 
       if (result != null) {
@@ -86,10 +131,10 @@ class _AddCoursPageState extends State<AddCoursPage> {
           _attachedFiles.add(
             AttachedFile(
               name: platformFile.name,
-              path: platformFile.path ?? '', // Peut être vide sur web
+              path: platformFile.path ?? '',
               type: FileType.image,
               size: platformFile.size,
-              bytes: platformFile.bytes, // Stocker les bytes pour le web
+              bytes: platformFile.bytes,
             ),
           );
         });
@@ -134,7 +179,7 @@ class _AddCoursPageState extends State<AddCoursPage> {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.video,
         allowMultiple: false,
-        withData: true, // Important pour le web
+        withData: true,
       );
 
       if (result != null) {
@@ -144,10 +189,10 @@ class _AddCoursPageState extends State<AddCoursPage> {
           _attachedFiles.add(
             AttachedFile(
               name: platformFile.name,
-              path: platformFile.path ?? '', // Peut être vide sur web
+              path: platformFile.path ?? '',
               type: FileType.video,
               size: platformFile.size,
-              bytes: platformFile.bytes, // Stocker les bytes pour le web
+              bytes: platformFile.bytes,
             ),
           );
         });
@@ -260,6 +305,15 @@ class _AddCoursPageState extends State<AddCoursPage> {
     // - Créer un modèle Course/Resource
     // - Sauvegarder les données
     // - Envoyer les notifications si nécessaire
+    
+    // 🔹 Affichage des informations sélectionnées pour debug
+    print('Titre: ${_titreController.text}');
+    print('Matière: ${_selectedMatiere!.nom} (ID: ${_selectedMatiere!.id})');
+    print('Enseignant: ${_selectedMatiere!.enseignant}');
+    print('Groupes sélectionnés: $_selectedGroupes');
+    print('Description: ${_descriptionController.text}');
+    print('Fichiers attachés: ${_attachedFiles.length}');
+    print('Notification: $_sendNotification');
 
     setState(() {
       _isLoading = false;
@@ -322,7 +376,8 @@ class _AddCoursPageState extends State<AddCoursPage> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
+                    // 🔹 Modification: Dropdown avec Subject au lieu de String
+                    DropdownButtonFormField<Subject>(
                       value: _selectedMatiere,
                       decoration: const InputDecoration(
                         labelText: 'Matière *',
@@ -332,7 +387,23 @@ class _AddCoursPageState extends State<AddCoursPage> {
                       items: _matieres.map((matiere) {
                         return DropdownMenuItem(
                           value: matiere,
-                          child: Text(matiere),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                matiere.nom,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                matiere.enseignant,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
                         );
                       }).toList(),
                       onChanged: (value) {
@@ -355,19 +426,22 @@ class _AddCoursPageState extends State<AddCoursPage> {
                     const SizedBox(height: 24),
                     _buildSectionTitle('Groupes concernés'),
                     const SizedBox(height: 12),
+                    // 🔹 Modification: FilterChips avec Group objects
                     Wrap(
                       spacing: 8,
                       children: _groupes.map((groupe) {
-                        final isSelected = _selectedGroupes.contains(groupe);
+                        final isSelected = _selectedGroupes.contains(groupe.id);
                         return FilterChip(
-                          label: Text('Groupe $groupe'),
+                          label: Text(
+                            'G${groupe.numGroup} - ${groupe.filiere} ${groupe.niveau}A',
+                          ),
                           selected: isSelected,
                           onSelected: (selected) {
                             setState(() {
                               if (selected) {
-                                _selectedGroupes.add(groupe);
+                                _selectedGroupes.add(groupe.id);
                               } else {
-                                _selectedGroupes.remove(groupe);
+                                _selectedGroupes.remove(groupe.id);
                               }
                             });
                           },
@@ -507,7 +581,7 @@ class AttachedFile {
   final String path;
   final FileType type;
   final int size;
-  final List<int>? bytes; // Pour supporter le web
+  final List<int>? bytes;
 
   AttachedFile({
     required this.name,
