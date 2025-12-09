@@ -1,12 +1,13 @@
 import 'package:abs_flow/screens/add_cours.dart';
+<<<<<<< HEAD
 import 'package:abs_flow/screens/historique.dart';
 import 'package:abs_flow/screens/send_alert_page.dart';
 =======
 import 'package:abs_flow/screens/add_ratt.dart';
 import 'package:abs_flow/screens/settings.dart';
 
+>>>>>>> origin/faty009
 import 'package:flutter/material.dart';
-
 
 import 'prise_appel.dart';
 import 'students_list.dart';
@@ -31,8 +32,23 @@ class HomePage extends StatelessWidget {
                 style: TextStyle(color: Colors.white, fontSize: 24),
               ),
             ),
-	    ListTile(
+
+            ListTile(
               leading: Icon(Icons.group),
+<<<<<<< HEAD
+              title: Text('Prise d\'appel'),
+              onTap: () {
+                // Naviguer vers la page "Prise d'appel"
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => PriseAppelPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.list),
+=======
+>>>>>>> origin/faty009
               title: Text('Liste des étudiants'),
               onTap: () {
                 Navigator.push(
@@ -43,6 +59,8 @@ class HomePage extends StatelessWidget {
             ),
 
             ListTile(
+<<<<<<< HEAD
+=======
               leading: Icon(Icons.check_circle),
               title: Text('Prise d\'appel'),
               onTap: () {
@@ -53,17 +71,8 @@ class HomePage extends StatelessWidget {
               },
             ),
 
-
             ListTile(
-              leading: Icon(Icons.add_alert),
-              title: Text('Envoyer alert'),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => SendAlertPage()
-		),
-
-	    ListTile(
+>>>>>>> origin/faty009
               leading: Icon(Icons.add),
               title: Text('Ajouter cours'),
               onTap: () {
@@ -73,6 +82,25 @@ class HomePage extends StatelessWidget {
                 );
               },
             ),
+<<<<<<< HEAD
+            ListTile(
+              leading: Icon(Icons.history),
+              title: Text('Historique'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => HistoriquePage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.add_alert),
+              title: Text('Envoyer alert'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SendAlertPage()),
+=======
 
             // ⭐ Ajouter rattrapage
             ListTile(
@@ -94,6 +122,7 @@ class HomePage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => SettingsPage()),
+>>>>>>> origin/faty009
                 );
               },
             ),
