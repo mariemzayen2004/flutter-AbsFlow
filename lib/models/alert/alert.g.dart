@@ -22,13 +22,15 @@ class AlertModelAdapter extends TypeAdapter<AlertModel> {
       totalHeuresAbsence: fields[2] as int,
       niveau: fields[3] as AlertLevel,
       date: fields[4] as DateTime,
+      groupId: fields[5] as int,
+      subjectId: fields[6] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, AlertModel obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -38,7 +40,11 @@ class AlertModelAdapter extends TypeAdapter<AlertModel> {
       ..writeByte(3)
       ..write(obj.niveau)
       ..writeByte(4)
-      ..write(obj.date);
+      ..write(obj.date)
+      ..writeByte(5)
+      ..write(obj.groupId)
+      ..writeByte(6)
+      ..write(obj.subjectId);
   }
 
   @override

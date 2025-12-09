@@ -6,43 +6,41 @@ class SessionService {
 
   SessionService(this._sessionBox);
 
-  // -------------------------------------------------------------
-  // Ouverture de la Box Hive (déjà ouverte dans le constructeur)
-  // -------------------------------------------------------------
+  // Ouverture de la Box Hive 
   Future<Box<Session>> _openSessionBox() async {
     return _sessionBox;
   }
 
-  // -------------------------------------------------------------
-  // 1️⃣ ajouterSession() : Créer une session et laisser Hive générer un ID
-  // -------------------------------------------------------------
+  // Méthode pour ajouter une séance
   Future<int> ajouterSession(
-    int groupId,
-    int subjectId,
-    DateTime date,
-    DateTime heureDebut,
-    DateTime heureFin,
-  ) async {
-    final box = await _openSessionBox();
+  int groupId,
+  int subjectId,
+  DateTime date,
+  DateTime heureDebut,
+  DateTime heureFin,
+) async {
+  final box = await _openSessionBox();
 
-    final session = Session(
-      groupId: groupId,
-      subjectId: subjectId,
-      date: date,
-      heureDebut: heureDebut,
-      heureFin: heureFin,
-    );
+  // Créer la session
+  final session = Session(
+    groupId: groupId,
+    subjectId: subjectId,
+    date: date,
+    heureDebut: heureDebut,
+    heureFin: heureFin,
+  );
 
-    // Utiliser box.add() pour ajouter la session sans spécifier d'ID
-    final key = await box.add(session);
+  // Ajouter la session dans la box (ajouter sans spécifier l'ID)
+  final key = await box.add(session);  // `add()` génère un ID automatiquement
 
-    // Retourner l'ID généré par Hive
-    return key;  // Hive génère un ID unique automatiquement
-  }
+  // Vérification dans la console pour voir si l'ID est généré
+  print('Séance ajoutée avec ID : $key');  // Afficher l'ID généré
 
-  // -------------------------------------------------------------
-  // 2️⃣ supprimerSession()
-  // -------------------------------------------------------------
+  // Retourner l'ID généré par Hive
+  return key;  // Le retour doit être un int (l'ID de la session)
+}
+
+  // Méthode pour supprimer une séance
   Future<void> supprimerSession(int sessionId) async {
     final box = await _openSessionBox();
 
@@ -51,25 +49,19 @@ class SessionService {
     }
   }
 
-  // -------------------------------------------------------------
-  // 3️⃣ getSessionById()
-  // -------------------------------------------------------------
+  // Méthode pour récupérer une séance par l'id
   Future<Session?> getSessionById(int sessionId) async {
     final box = await _openSessionBox();
     return box.get(sessionId);
   }
 
-  // -------------------------------------------------------------
-  // 4️⃣ getSessions()
-  // -------------------------------------------------------------
+  // Méthode pour récupérer une séance
   Future<List<Session>> getSessions() async {
     final box = await _openSessionBox();
     return box.values.toList();
   }
 
-  // -------------------------------------------------------------
-  // 5️⃣ getSessionsByGroup()
-  // -------------------------------------------------------------
+  // Méthode pour récupérer une séance par groupe
   Future<List<Session>> getSessionsByGroup(int groupId) async {
     final box = await _openSessionBox();
 
@@ -78,9 +70,7 @@ class SessionService {
         .toList();
   }
 
-  // -------------------------------------------------------------
-  // 6️⃣ getSessionsBySubject()
-  // -------------------------------------------------------------
+  // Méthode pour récupérer une séance par matière
   Future<List<Session>> getSessionsBySubject(int subjectId) async {
     final box = await _openSessionBox();
 
@@ -89,9 +79,7 @@ class SessionService {
         .toList();
   }
 
-  // -------------------------------------------------------------
-  // 7️⃣ filterSessions()
-  // -------------------------------------------------------------
+  // Méthode pour filtrer les séance
   Future<List<Session>> filterSessions({
     DateTime? dateDebut,
     DateTime? dateFin,

@@ -19,12 +19,14 @@ class AlertService {
   }
 
   /// ----------------------------------------------------------
-  /// 1️⃣ Créer une alerte (avertissement / élimination)
+  /// Créer une alerte (avertissement / élimination)
   /// ----------------------------------------------------------
   Future<AlertModel> creerAlerte({
     required int studentId,
     required int totalHeuresAbsence,
     required AlertLevel niveau,
+    required int groupId,
+    required int subjectId, 
   }) async {
     final box = await _openAlertBox();
 
@@ -36,6 +38,8 @@ class AlertService {
       totalHeuresAbsence: totalHeuresAbsence,
       niveau: niveau,
       date: DateTime.now(),
+      groupId: groupId,  
+      subjectId: subjectId,  
     );
 
     await box.put(newId, alerte);
@@ -43,7 +47,7 @@ class AlertService {
   }
 
   /// ----------------------------------------------------------
-  /// 2️⃣ Envoyer l'alerte par email (mock)
+  /// Envoyer l'alerte par email (mock)
   /// ----------------------------------------------------------
   Future<bool> envoyerAlerteEmail(int alertId) async {
     final alertBox = await _openAlertBox();
@@ -55,16 +59,19 @@ class AlertService {
     final etudiant = studentBox.get(alerte.studentId);
     if (etudiant == null) return false;
 
-    // Simulation d'envoi réel (à remplacer par un vrai service email)
+    // Simulation d'envoi réel (remplace par un vrai service email)
     print("================================================");
     print("📨 EMAIL ENVOYÉ");
     print("Étudiant : ${etudiant.prenom} ${etudiant.nom}");
     print("Matricule : ${etudiant.matricule}");
     print("Type d’alerte : ${alerte.niveau}");
     print("Heures d’absence : ${alerte.totalHeuresAbsence}");
+    print("Groupe : ${alerte.groupId}");
+    print("Matière : ${alerte.subjectId}");
     print("Envoyé le : ${alerte.date}");
     print("================================================");
 
     return true;
   }
 }
+

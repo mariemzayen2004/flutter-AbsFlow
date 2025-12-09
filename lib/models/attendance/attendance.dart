@@ -30,4 +30,6 @@ class Attendance extends HiveObject {
     this.remarque,
     this.justifie = false,
   });
+  // Accéder à l'ID généré par Hive
+  int get id => this.key as int;
 }
