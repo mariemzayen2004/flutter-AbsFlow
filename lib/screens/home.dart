@@ -1,8 +1,13 @@
 import 'package:abs_flow/screens/add_cours.dart';
+import 'package:abs_flow/screens/add_ratt.dart';
+import 'package:abs_flow/screens/settings.dart';
+
 import 'package:flutter/material.dart';
 
 import 'prise_appel.dart';
 import 'students_list.dart';
+// Import à ajouter quand tu créeras la page paramètres
+// import 'parametres.dart';
 
 class HomePage extends StatelessWidget {
   @override
@@ -16,47 +21,66 @@ class HomePage extends StatelessWidget {
           padding: EdgeInsets.zero,
           children: <Widget>[
             DrawerHeader(
-              decoration: BoxDecoration(
-                color: Colors.blue,
-              ),
+              decoration: BoxDecoration(color: Colors.blue),
               child: Text(
                 'Menu',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                ),
+                style: TextStyle(color: Colors.white, fontSize: 24),
               ),
             ),
+
             ListTile(
-              leading: Icon(Icons.home),
-              title: Text('Prise d\'appel'),
-              onTap: () {
-                // Naviguer vers la page "Prise d'appel"
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => PriseAppelPage()),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.list),
+              leading: Icon(Icons.group),
               title: Text('Liste des étudiants'),
               onTap: () {
-                // Naviguer vers la page "Liste des étudiants"
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => StudentsListPage()),
                 );
               },
             ),
+
             ListTile(
-              leading: Icon(Icons.list),
+              leading: Icon(Icons.check_circle),
+              title: Text('Prise d\'appel'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => PriseAppelPage()),
+                );
+              },
+            ),
+
+            ListTile(
+              leading: Icon(Icons.add),
               title: Text('Ajouter cours'),
               onTap: () {
-                // Naviguer vers la page "Liste des étudiants"
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => AddCoursPage()),
+                );
+              },
+            ),
+
+            // ⭐ Ajouter rattrapage
+            ListTile(
+              leading: Icon(Icons.add_alarm),
+              title: Text('Ajouter rattrapage'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => AddRattPage()),
+                );
+              },
+            ),
+
+            // ⭐ NOUVEAU : Paramètres
+            ListTile(
+              leading: Icon(Icons.settings),
+              title: Text('Paramètres'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SettingsPage()),
                 );
               },
             ),
