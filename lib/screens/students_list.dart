@@ -601,7 +601,7 @@ class StudentProfilePage extends StatelessWidget {
     final prenomController = TextEditingController(text: student.prenom);
     final matriculeController = TextEditingController(text: student.matricule);
 
-    showDialog(
+  showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Modifier les données'),

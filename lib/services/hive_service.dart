@@ -37,6 +37,7 @@ class HiveService {
     Hive.registerAdapter(AlertModelAdapter());
     Hive.registerAdapter(SettingsModelAdapter());
     Hive.registerAdapter(ModeAffichageAdapter());
+    Hive.registerAdapter(AlertLevelAdapter());
 
     // 3) Ouvrir les box
     final s = HiveService.instance;

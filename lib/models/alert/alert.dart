@@ -18,19 +18,28 @@ class AlertModel extends HiveObject {
   @HiveField(4)
   DateTime date;
 
+  @HiveField(5)
+  int groupId;  
+
+  @HiveField(6)
+  int subjectId;  
+
   AlertModel({
     required this.id,
     required this.studentId,
     required this.totalHeuresAbsence,
     required this.niveau,
     required this.date,
+    required this.groupId,
+    required this.subjectId,
   });
 }
+
 @HiveType(typeId: 9)
 enum AlertLevel {
   @HiveField(0)
-  avertissement,
+  avertissement,  // Alerte
 
   @HiveField(1)
-  elimination,
+  elimination,    // Élimination
 }

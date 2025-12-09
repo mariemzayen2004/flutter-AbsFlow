@@ -33,6 +33,7 @@ void main() async {
   alertService = AlertService(hive.alertsBox,studentService);
   groupesService = GroupesService(hive.groupsBox);
   sessionService = SessionService(hive.sessionsBox);
+  
 
   // 4. Pré-remplir les étudiants si la box est vide
   await studentService.initStudentsIfEmpty();

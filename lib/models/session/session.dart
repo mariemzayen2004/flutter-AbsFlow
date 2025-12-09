@@ -27,4 +27,6 @@ class Session extends HiveObject {
     required this.heureDebut,
     required this.heureFin,
   });
+  // Accéder à l'ID généré par Hive
+  int get id => this.key as int; 
 }
