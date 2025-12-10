@@ -13,32 +13,32 @@ class SessionService {
 
   // Méthode pour ajouter une séance
   Future<int> ajouterSession(
-  int groupId,
-  int subjectId,
-  DateTime date,
-  DateTime heureDebut,
-  DateTime heureFin,
-) async {
-  final box = await _openSessionBox();
+    int groupId,
+    int subjectId,
+    DateTime date,
+    DateTime heureDebut,
+    DateTime heureFin,
+  ) async {
+    final box = await _openSessionBox();
 
-  // Créer la session
-  final session = Session(
-    groupId: groupId,
-    subjectId: subjectId,
-    date: date,
-    heureDebut: heureDebut,
-    heureFin: heureFin,
-  );
+    // Créer la session
+    final session = Session(
+      groupId: groupId,
+      subjectId: subjectId,
+      date: date,
+      heureDebut: heureDebut,
+      heureFin: heureFin,
+    );
 
-  // Ajouter la session dans la box (ajouter sans spécifier l'ID)
-  final key = await box.add(session);  // `add()` génère un ID automatiquement
+    // Ajouter la session dans la box (ajouter sans spécifier l'ID)
+    final key = await box.add(session);  // `add()` génère un ID automatiquement
 
-  // Vérification dans la console pour voir si l'ID est généré
-  print('Séance ajoutée avec ID : $key');  // Afficher l'ID généré
+    // Vérification dans la console pour voir si l'ID est généré
+    print('Séance ajoutée avec ID : $key');  // Afficher l'ID généré
 
-  // Retourner l'ID généré par Hive
-  return key;  // Le retour doit être un int (l'ID de la session)
-}
+    // Retourner l'ID généré par Hive
+    return key;  // Le retour doit être un int (l'ID de la session)
+  }
 
   // Méthode pour supprimer une séance
   Future<void> supprimerSession(int sessionId) async {
@@ -55,7 +55,7 @@ class SessionService {
     return box.get(sessionId);
   }
 
-  // Méthode pour récupérer une séance
+  // Méthode pour récupérer les séance
   Future<List<Session>> getSessions() async {
     final box = await _openSessionBox();
     return box.values.toList();
@@ -79,29 +79,19 @@ class SessionService {
         .toList();
   }
 
-  // Méthode pour filtrer les séance
+  // Méthode pour filtrer les séances par date
   Future<List<Session>> filterSessions({
-    DateTime? dateDebut,
-    DateTime? dateFin,
-    int? groupId,
-    int? subjectId,
+    DateTime? date,
   }) async {
     final box = await _openSessionBox();
 
     return box.values.where((s) {
-      final okDateDebut =
-          (dateDebut == null || s.date.isAfter(dateDebut) || s.date.isAtSameMomentAs(dateDebut));
+      // Filtrer par date
+      final okDate =
+          (date == null || s.date.isAtSameMomentAs(date));
+      return okDate ;
 
-      final okDateFin =
-          (dateFin == null || s.date.isBefore(dateFin) || s.date.isAtSameMomentAs(dateFin));
-
-      final okGroup =
-          (groupId == null || s.groupId == groupId);
-
-      final okSubject =
-          (subjectId == null || s.subjectId == subjectId);
-
-      return okDateDebut && okDateFin && okGroup && okSubject;
     }).toList();
   }
+
 }

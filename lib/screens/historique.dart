@@ -9,6 +9,7 @@ import '../models/session/session.dart';
 import '../models/attendance/attendance.dart';
 import '../models/group/group.dart';
 import '../models/subject/subject.dart';
+import '../services/subjectService.dart';
 
 class HistoriquePage extends StatefulWidget {
   const HistoriquePage({super.key});
@@ -23,13 +24,11 @@ class _HistoriquePageState extends State<HistoriquePage> {
   late AttendanceService _attendanceService;
   late StudentService _studentService;
   late GroupesService _groupesService;
+  late SubjectService _subjectService;
 
   // Variables d'état
   List<Session> _sessions = [];
   DateTime? _selectedDate;
-  Group? _selectedGroup;
-  Subject? _selectedSubject;
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -40,6 +39,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
     _attendanceService = AttendanceService(hive.attendancesBox);
     _studentService = StudentService(hive.studentsBox);
     _groupesService = GroupesService(hive.groupsBox);
+    _subjectService = SubjectService(hive.subjectsBox);
 
     _loadSessions();
   }
@@ -50,16 +50,15 @@ class _HistoriquePageState extends State<HistoriquePage> {
       final box = await Hive.openBox<Session>('sessions');
       final sessions = box.values.toList();
 
+      // Trier les séances par date (de la plus récente à la plus ancienne)
+      sessions.sort((a, b) => b.date.compareTo(a.date)); // tri décroissant
+
       print('Nombre de séances dans la box : ${sessions.length}');
 
       setState(() {
         _sessions = sessions;
-        _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
       print('Erreur de chargement des séances: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -72,35 +71,13 @@ class _HistoriquePageState extends State<HistoriquePage> {
     }
   }
 
-  // Filtrer les séances selon la date, groupe, ou matière
+  // Filtrer les séances selon la date
   Future<void> _filterSessions() async {
-    setState(() {
-      _isLoading = true;
-    });
-
     final sessions = await _sessionService.filterSessions(
-      dateDebut: _selectedDate,
-      groupId: _selectedGroup?.id,
-      subjectId: _selectedSubject?.id,
+      date: _selectedDate,
     );
-
     setState(() {
       _sessions = sessions;
-      _isLoading = false;
-    });
-  }
-
-  // Mettre à jour l'état de présence d'un étudiant
-  Future<void> _updateAttendanceStatus(Attendance attendance) async {
-    await _attendanceService.modifierAttendance(
-      attendance.id,
-      !attendance.present,
-      attendance.heuresManquees,
-      attendance.remarque,
-      attendance.justifie,
-    );
-    setState(() {
-      _sessions = _sessions;
     });
   }
 
@@ -206,31 +183,14 @@ class _HistoriquePageState extends State<HistoriquePage> {
                   _filterSessions();
                 },
               ),
-              const SizedBox(height: 8),
-              _buildFilterTile(
-                icon: Icons.group,
-                title: 'Sélectionner un groupe',
-                subtitle: _selectedGroup?.filiere ?? 'Aucun groupe',
-                color: Colors.green,
-                onTap: () async {
-                  final group = await _groupesService.getGroupeById(1);
-                  setState(() {
-                    _selectedGroup = group;
-                  });
-                  Navigator.pop(context);
-                  _filterSessions();
-                },
-              ),
             ],
           ),
           actions: [
-            if (_selectedDate != null || _selectedGroup != null)
+            if (_selectedDate != null )
               TextButton.icon(
                 onPressed: () {
                   setState(() {
                     _selectedDate = null;
-                    _selectedGroup = null;
-                    _selectedSubject = null;
                   });
                   Navigator.pop(context);
                   _loadSessions();
@@ -247,6 +207,40 @@ class _HistoriquePageState extends State<HistoriquePage> {
         );
       },
     );
+  }
+
+  // Méthode asynchrone pour mettre à jour l'état d'une présence
+  Future<void> _updateAttendanceStatus(Attendance attendance) async {
+    try {
+      // Appel au service pour modifier l'attendance
+      await _attendanceService.modifierAttendance(
+        attendance.id,
+        attendance.present,
+        attendance.heuresManquees,
+        attendance.remarque,
+        attendance.justifie,
+      );
+
+      // Afficher un message de succès
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Présence modifiée avec succès'),
+          backgroundColor: Colors.green.shade400,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } catch (e) {
+      // En cas d'erreur lors de la mise à jour
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la mise à jour de la présence'),
+          backgroundColor: Colors.red.shade400,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
   }
 
   Widget _buildFilterTile({
@@ -310,102 +304,110 @@ class _HistoriquePageState extends State<HistoriquePage> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.how_to_reg, color: Colors.blue.shade700),
-              ),
-              const SizedBox(width: 12),
-              const Text('Modifier les présences', style: TextStyle(fontSize: 20)),
-            ],
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: attendanceList.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.inbox, size: 64, color: Colors.grey.shade300),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Aucune présence enregistrée',
-                          style: TextStyle(color: Colors.grey.shade600),
-                        ),
-                      ],
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  )
-                : ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: attendanceList.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final attendance = attendanceList[index];
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        leading: CircleAvatar(
-                          backgroundColor: attendance.present
-                              ? Colors.green.shade100
-                              : Colors.red.shade100,
-                          child: Icon(
-                            attendance.present ? Icons.check : Icons.close,
-                            color: attendance.present
-                                ? Colors.green.shade700
-                                : Colors.red.shade700,
-                          ),
-                        ),
-                        title: Text(
-                          'Étudiant ${attendance.studentId}',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text(
-                          attendance.present ? 'Présent' : 'Absent',
-                          style: TextStyle(
-                            color: attendance.present
-                                ? Colors.green.shade700
-                                : Colors.red.shade700,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        trailing: IconButton(
-                          icon: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(Icons.edit, color: Colors.blue.shade700, size: 20),
-                          ),
-                          onPressed: () => _openEditDialog(attendance),
-                        ),
-                      );
-                    },
+                    child: Icon(Icons.how_to_reg, color: Colors.blue.shade700),
                   ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Fermer'),
-            ),
-          ],
+                  const SizedBox(width: 12),
+                  const Text('Modifier les présences', style: TextStyle(fontSize: 20)),
+                ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: attendanceList.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.inbox, size: 64, color: Colors.grey.shade300),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Aucune présence enregistrée',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: attendanceList.length,
+                        separatorBuilder: (context, index) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final attendance = attendanceList[index];
+                          final student = _studentService.getStudentById(attendance.studentId);  // Récupérer l'étudiant
+                          final studentName = student != null ? '${student.prenom} ${student.nom}' : 'Étudiant inconnu';  // Nom et prénom de l'étudiant
+
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            leading: CircleAvatar(
+                              backgroundColor: attendance.present
+                                  ? Colors.green.shade100
+                                  : Colors.red.shade100,
+                              child: Icon(
+                                attendance.present ? Icons.check : Icons.close,
+                                color: attendance.present
+                                    ? Colors.green.shade700
+                                    : Colors.red.shade700,
+                              ),
+                            ),
+                            title: Text(
+                              studentName,  // Afficher le nom et prénom de l'étudiant
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              attendance.present ? 'Présent' : 'Absent',
+                              style: TextStyle(
+                                color: attendance.present
+                                    ? Colors.green.shade700
+                                    : Colors.red.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            trailing: IconButton(
+                              icon: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(Icons.edit, color: Colors.blue.shade700, size: 20),
+                              ),
+                              onPressed: () => _openEditDialog(attendance, setDialogState),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Fermer'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  void _openEditDialog(Attendance attendance) {
+  // Pour ouvrir le dialogue de modification de présence
+  void _openEditDialog(Attendance attendance, Function setDialogState) {
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (context, setState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: Row(
@@ -433,16 +435,18 @@ class _HistoriquePageState extends State<HistoriquePage> {
                     ),
                     child: ToggleButtons(
                       isSelected: [attendance.present, !attendance.present],
-                      onPressed: (index) {
-                        setDialogState(() {
+                      onPressed: (index) async {
+                        setState(() {
+                          // Met à jour l'état du bouton dans le dialogue
                           attendance.present = index == 0;
                           if (attendance.present) {
                             attendance.heuresManquees = 0;
                             attendance.remarque = '';
                           }
-                          attendance.save();
                         });
-                        setState(() {});
+
+                        // Sauvegarde de l'état de l'attendance dans la base de données
+                        attendance.save();
                       },
                       borderRadius: BorderRadius.circular(12),
                       selectedColor: Colors.white,
@@ -481,10 +485,15 @@ class _HistoriquePageState extends State<HistoriquePage> {
                   child: Text('Annuler', style: TextStyle(color: Colors.grey.shade600)),
                 ),
                 ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      attendance.save();
-                    });
+                  onPressed: () async {
+                    await _attendanceService.modifierAttendance(
+                      attendance.id,
+                      attendance.present,
+                      attendance.heuresManquees,
+                      attendance.remarque,
+                      attendance.justifie,
+                    );
+                    setDialogState(() {}); // Rafraîchir l'interface du dialogue après modification
                     Navigator.pop(context);
                   },
                   icon: const Icon(Icons.save),
@@ -503,7 +512,6 @@ class _HistoriquePageState extends State<HistoriquePage> {
       },
     );
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -539,23 +547,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
           ),
         ],
       ),
-      body: _isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade700),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Chargement...',
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-            )
-          : _sessions.isEmpty
+      body:_sessions.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -621,26 +613,11 @@ class _HistoriquePageState extends State<HistoriquePage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Séance ${session.id}',
+                                      'Séance ${session.date}',
                                       style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                       ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.calendar_today,
-                                            size: 14, color: Colors.grey.shade600),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Date: ${session.date}',
-                                          style: TextStyle(
-                                            color: Colors.grey.shade700,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
                                     ),
                                     const SizedBox(height: 4),
                                     Row(
@@ -656,6 +633,59 @@ class _HistoriquePageState extends State<HistoriquePage> {
                                           ),
                                         ),
                                       ],
+                                    ),
+                                    // Afficher la matière et le groupe
+                                    const SizedBox(height: 4),
+                                    FutureBuilder<Subject?>(
+                                      future: _subjectService.getSubjectsById(session.subjectId),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState == ConnectionState.waiting) {
+                                          return const CircularProgressIndicator();
+                                        }
+                                        if (!snapshot.hasData) {
+                                          return const Text('Matière non trouvée');
+                                        }
+                                        final subject = snapshot.data!;
+                                        return Row(
+                                          children: [
+                                            Icon(Icons.book, size: 14, color: Colors.grey.shade600),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Matière: ${subject.nom}',  // Affiche le nom de la matière
+                                              style: TextStyle(
+                                                color: Colors.grey.shade700,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(height: 4),
+                                    FutureBuilder<Group?>(
+                                      future: _groupesService.getGroupeById(session.groupId),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState == ConnectionState.waiting) {
+                                          return const CircularProgressIndicator();
+                                        }
+                                        if (!snapshot.hasData) {
+                                          return const Text('Groupe non trouvé');
+                                        }
+                                        final group = snapshot.data!;
+                                        return Row(
+                                          children: [
+                                            Icon(Icons.group, size: 14, color: Colors.grey.shade600),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Groupe ${group.numGroup} : ${group.filiere} ${group.niveau} ',  // Affichage du nom du groupe
+                                              style: TextStyle(
+                                                color: Colors.grey.shade700,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
