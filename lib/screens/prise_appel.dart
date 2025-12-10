@@ -1,3 +1,4 @@
+import 'package:abs_flow/main.dart';
 import 'package:flutter/material.dart';
 import '../models/group/group.dart';
 import '../models/subject/subject.dart';
@@ -247,7 +248,8 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
           heuresManquees,
           remarque,
         );
-
+        
+        print("Nombre d'heures manquées pour ${student.prenom} ${student.nom}: $heuresManquees");
         //await _verifierSeuilsEtGenererAlerte(student.id);
       }
 
@@ -524,7 +526,6 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                               'G${g.numGroup} - ${g.filiere} ${g.niveau}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
-                                fontSize: 12,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -534,7 +535,11 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                     onChanged: (group) => _onGroupSelected(group),
                   ),
                 ),
-                const SizedBox(width: 12),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
                 Expanded(
                   child: DropdownButtonFormField<Subject>(
                     value: _selectedSubject,

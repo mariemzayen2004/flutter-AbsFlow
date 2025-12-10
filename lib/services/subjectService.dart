@@ -27,16 +27,23 @@ class SubjectService {
 
   // Détails d’une matière par id
   Subject? getSubjectById(int subjectId) {
-    // 🔹 Option 1 : si tu utilises l'id comme clé Hive
-    // return _box.get(subjectId);
-
-    // 🔹 Option 2 : si l'id est un champ du modèle Subject
     try {
       return _subjectBox.values.firstWhere((s) => s.id == subjectId);
     } catch (_) {
       return null; // si pas trouvé
     }
   }
+
+  // Méthode modifiée pour retourner un Future<Subject?> au lieu d'un Subject?
+Future<Subject?> getSubjectsById(int subjectId) async {
+  try {
+    final subject = _subjectBox.values.firstWhere((s) => s.id == subjectId);
+    return subject;
+  } catch (_) {
+    return null; // si pas trouvé
+  }
+}
+
 
   // Matières d’un groupe pour la prise d’appel
   List<Subject> getSubjectsByGroup(int groupId) {
