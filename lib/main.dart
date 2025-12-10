@@ -9,6 +9,8 @@ import 'screens/home.dart';
 import 'services/hive_service.dart';
 import 'services/student_service.dart';
 import 'services/attendance_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'models/settings/settings.dart';
 
 late final StudentService studentService;
 late final AttendanceService attendanceService;
@@ -30,16 +32,18 @@ void main() async {
   // 3. Création des services
   studentService = StudentService(hive.studentsBox);
   attendanceService = AttendanceService(hive.attendancesBox);
-  alertService = AlertService(hive.alertsBox,studentService);
+  alertService = AlertService(hive.alertsBox, studentService);
   groupesService = GroupesService(hive.groupsBox);
   sessionService = SessionService(hive.sessionsBox);
-  
+  settingsService = SettingsService.instance;
 
-  // 4. Pré-remplir les étudiants si la box est vide
+  // 4. Initialiser les paramètres par défaut
+  settingsService.initialiserSettingsParDefaut();
+
+  // 5. Pré-remplir les étudiants si la box est vide
   await studentService.initStudentsIfEmpty();
 
-
-  // 5. Lancer l'app
+  // 6. Lancer l'app
   runApp(const AbsFlowApp());
 }
 
@@ -48,17 +52,30 @@ class AbsFlowApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'AbsFlow',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
-      ),
-      home: HomePage(),
-
+    // Utiliser ValueListenableBuilder pour écouter les changements de settings
+    return ValueListenableBuilder<Box<SettingsModel>>(
+      valueListenable: Hive.box<SettingsModel>('settings').listenable(),
+      builder: (context, box, _) {
+        final settings = settingsService.getSettings();
+        
+        return MaterialApp(
+          title: 'AbsFlow',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            useMaterial3: true,
+            colorSchemeSeed: Colors.blue,
+            brightness: Brightness.light,
+          ),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            colorSchemeSeed: Colors.blue,
+            brightness: Brightness.dark,
+          ),
+          themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          home: HomePage(),
+        );
+      },
     );
   }
 }
-
 

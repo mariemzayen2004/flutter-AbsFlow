@@ -1,7 +1,6 @@
 import 'package:abs_flow/screens/add_cours.dart';
 import 'package:abs_flow/screens/historique.dart';
 import 'package:abs_flow/screens/send_alert_page.dart';
-=======
 import 'package:abs_flow/screens/add_ratt.dart';
 import 'package:abs_flow/screens/settings.dart';
 
@@ -60,8 +59,10 @@ class HomePage extends StatelessWidget {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => SendAlertPage()
-		),
+                  MaterialPageRoute(builder: (context) => SendAlertPage()),
+                );
+              },
+            ),
 
 	    ListTile(
               leading: Icon(Icons.add),

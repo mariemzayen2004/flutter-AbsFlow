@@ -3,8 +3,10 @@ import 'package:hive_flutter/hive_flutter.dart';
 // 🔹 Ajout des imports nécessaires
 import '../models/student/student.dart';
 import '../models/group/group.dart';
+import '../models/settings/settings.dart';
 import '../services/student_service.dart';
 import '../services/group_services.dart';
+import '../services/setting_service.dart';
 
 class StudentsListPage extends StatefulWidget {
   const StudentsListPage({Key? key}) : super(key: key);
@@ -21,6 +23,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
   // 🔹 Ajout des services
   late StudentService _studentService;
   late GroupesService _groupesService;
+  late SettingsService _settingsService;
   
   // 🔹 Ajout des listes chargées depuis Hive
   List<Group> _groupes = [];
@@ -46,6 +49,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
       // Initialiser les services
       _studentService = StudentService(studentsBox);
       _groupesService = GroupesService(groupsBox);
+      _settingsService = SettingsService.instance;
 
       // Insérer les données initiales si nécessaire
       await _studentService.initStudentsIfEmpty();
@@ -135,28 +139,28 @@ class _StudentsListPageState extends State<StudentsListPage> {
               children: [
                 _buildSearchAndFilterSection(),
                 Expanded(
-                  child: ValueListenableBuilder(
-                    valueListenable: Hive.box<Student>('students').listenable(),
-                    builder: (context, Box<Student> box, _) {
-                      final allStudents = box.values.toList();
-                      final filteredStudents = _filterStudents(allStudents);
+                  // 🔹 Écouter les changements de settings ET de students
+                  child: ValueListenableBuilder<Box<SettingsModel>>(
+                    valueListenable: Hive.box<SettingsModel>('settings').listenable(),
+                    builder: (context, settingsBox, _) {
+                      final settings = _settingsService.getSettings();
+                      
+                      return ValueListenableBuilder(
+                        valueListenable: Hive.box<Student>('students').listenable(),
+                        builder: (context, Box<Student> studentsBox, _) {
+                          final allStudents = studentsBox.values.toList();
+                          final filteredStudents = _filterStudents(allStudents);
 
-                      if (filteredStudents.isEmpty) {
-                        return const Center(
-                          child: Text('Aucun étudiant trouvé'),
-                        );
-                      }
+                          if (filteredStudents.isEmpty) {
+                            return const Center(
+                              child: Text('Aucun étudiant trouvé'),
+                            );
+                          }
 
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(8),
-                        itemCount: filteredStudents.length,
-                        itemBuilder: (context, index) {
-                          return StudentCard(
-                            student: filteredStudents[index],
-                            groupDisplayName: filteredStudents[index].groupId != null
-                                ? _getGroupDisplayName(filteredStudents[index].groupId!)
-                                : 'Non assigné',
-                          );
+                          // 🔹 Affichage selon le mode (Liste ou Grille)
+                          return settings.modeAffichage == ModeAffichage.liste
+                              ? _buildListView(filteredStudents)
+                              : _buildGridView(filteredStudents);
                         },
                       );
                     },
@@ -164,6 +168,44 @@ class _StudentsListPageState extends State<StudentsListPage> {
                 ),
               ],
             ),
+    );
+  }
+
+  // 🔹 Vue en liste
+  Widget _buildListView(List<Student> students) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(8),
+      itemCount: students.length,
+      itemBuilder: (context, index) {
+        return StudentCard(
+          student: students[index],
+          groupDisplayName: students[index].groupId != null
+              ? _getGroupDisplayName(students[index].groupId!)
+              : 'Non assigné',
+        );
+      },
+    );
+  }
+
+  // 🔹 Vue en grille
+  Widget _buildGridView(List<Student> students) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(8),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2, // 2 colonnes
+        childAspectRatio: 0.75, // Ratio largeur/hauteur
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: students.length,
+      itemBuilder: (context, index) {
+        return StudentGridCard(
+          student: students[index],
+          groupDisplayName: students[index].groupId != null
+              ? _getGroupDisplayName(students[index].groupId!)
+              : 'Non assigné',
+        );
+      },
     );
   }
 
@@ -248,14 +290,15 @@ class _StudentsListPageState extends State<StudentsListPage> {
   }
 }
 
+// 🔹 Card pour l'affichage en liste
 class StudentCard extends StatelessWidget {
   final Student student;
-  final String groupDisplayName; // 🔹 Ajout du paramètre
+  final String groupDisplayName;
 
   const StudentCard({
     Key? key,
     required this.student,
-    required this.groupDisplayName, // 🔹 Paramètre obligatoire
+    required this.groupDisplayName,
   }) : super(key: key);
 
   String _getStudentStatus(Student student) {
@@ -290,7 +333,7 @@ class StudentCard extends StatelessWidget {
             MaterialPageRoute(
               builder: (context) => StudentProfilePage(
                 student: student,
-                groupDisplayName: groupDisplayName, // 🔹 Passer le nom du groupe
+                groupDisplayName: groupDisplayName,
               ),
             ),
           );
@@ -336,7 +379,6 @@ class StudentCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    // 🔹 Affichage du nom complet du groupe
                     Text(
                       groupDisplayName,
                       style: TextStyle(
@@ -395,14 +437,156 @@ class StudentCard extends StatelessWidget {
   }
 }
 
+// 🔹 Nouvelle Card pour l'affichage en grille
+class StudentGridCard extends StatelessWidget {
+  final Student student;
+  final String groupDisplayName;
+
+  const StudentGridCard({
+    Key? key,
+    required this.student,
+    required this.groupDisplayName,
+  }) : super(key: key);
+
+  String _getStudentStatus(Student student) {
+    if (student.tauxAbsence >= 30) return 'Échec';
+    if (student.tauxAbsence >= 20) return 'Alerte';
+    return 'Normal';
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'Échec':
+        return Colors.red;
+      case 'Alerte':
+        return Colors.orange;
+      default:
+        return Colors.green;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = _getStudentStatus(student);
+    final statusColor = _getStatusColor(status);
+
+    return Card(
+      elevation: 2,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => StudentProfilePage(
+                student: student,
+                groupDisplayName: groupDisplayName,
+              ),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 40,
+                backgroundColor: Colors.blue[100],
+                backgroundImage: student.photoPath != null
+                    ? AssetImage(student.photoPath!)
+                    : null,
+                child: student.photoPath == null
+                    ? Text(
+                        '${student.prenom[0]}${student.nom[0]}',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '${student.prenom} ${student.nom}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                student.matricule,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                groupDisplayName,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: statusColor),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${student.tauxAbsence.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: statusColor,
+                ),
+              ),
+              Text(
+                '${student.totalHeuresAbsence}h',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class StudentProfilePage extends StatelessWidget {
   final Student student;
-  final String groupDisplayName; // 🔹 Ajout du paramètre
+  final String groupDisplayName;
 
   const StudentProfilePage({
     Key? key,
     required this.student,
-    required this.groupDisplayName, // 🔹 Paramètre obligatoire
+    required this.groupDisplayName,
   }) : super(key: key);
 
   String _getStudentStatus(Student student) {
@@ -521,7 +705,6 @@ class StudentProfilePage extends StatelessWidget {
                     label: 'Matricule',
                     value: student.matricule,
                   ),
-                  // 🔹 Affichage du nom complet du groupe
                   InfoRow(
                     icon: Icons.group,
                     label: 'Groupe',
@@ -601,7 +784,7 @@ class StudentProfilePage extends StatelessWidget {
     final prenomController = TextEditingController(text: student.prenom);
     final matriculeController = TextEditingController(text: student.matricule);
 
-  showDialog(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Modifier les données'),
