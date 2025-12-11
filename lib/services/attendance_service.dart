@@ -70,6 +70,12 @@ class AttendanceService {
         .toList();
   }
 
+  // Total des heures manquées pour un étudiant
+  int getTotalHeuresManquees(int studentId) {
+    final attendances = getAttendanceByStudent(studentId);
+    return attendances.fold(0, (sum, attendance) => sum + attendance.heuresManquees);
+  }
+
   // 5️⃣ Récupérer UNE ligne pour un étudiant dans une séance
   Attendance? getAttendanceBySessionAndStudent(int sessionId, int studentId) {
     try {

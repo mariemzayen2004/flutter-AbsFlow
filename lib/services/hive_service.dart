@@ -42,7 +42,6 @@ class HiveService {
     // 3) Ouvrir les box
     final s = HiveService.instance;
 
-
     s.studentsBox     = await Hive.openBox<Student>('students');
     s.groupsBox       = await Hive.openBox<Group>('groups');
     s.subjectsBox     = await Hive.openBox<Subject>('subjects');

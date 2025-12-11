@@ -1,33 +1,34 @@
+import 'package:abs_flow/main.dart';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-// 🔹 Ajout des imports nécessaires
+import 'package:hive/hive.dart';
+import '../models/attendance/attendance.dart';
 import '../models/student/student.dart';
 import '../models/group/group.dart';
-import '../models/settings/settings.dart';
 import '../services/student_service.dart';
 import '../services/group_services.dart';
+import '../services/attendance_service.dart';
 import '../services/setting_service.dart';
+import 'student_profile.dart';
 
 class StudentsListPage extends StatefulWidget {
   const StudentsListPage({Key? key}) : super(key: key);
 
   @override
-  State<StudentsListPage> createState() => _StudentsListPageState();
+  _StudentsListPageState createState() => _StudentsListPageState();
 }
 
 class _StudentsListPageState extends State<StudentsListPage> {
-  final TextEditingController _searchController = TextEditingController();
-  int? _selectedGroupId;
-  String _searchQuery = '';
-  
-  // 🔹 Ajout des services
   late StudentService _studentService;
   late GroupesService _groupesService;
+  late AttendanceService _attendanceService;
   late SettingsService _settingsService;
-  
-  // 🔹 Ajout des listes chargées depuis Hive
+  bool _isInitialized = false;
+
   List<Group> _groupes = [];
-  bool _isLoading = false;
+  List<Student> _students = [];
+  int? _selectedGroupId;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -35,39 +36,27 @@ class _StudentsListPageState extends State<StudentsListPage> {
     _initializeServices();
   }
 
-  // 🔹 Initialisation des services et chargement des données
   Future<void> _initializeServices() async {
+    final studentBox = await Hive.openBox<Student>('students');
+    final groupBox = await Hive.openBox<Group>('groups');
+    final attendanceBox = await Hive.openBox<Attendance>('attendances');
+
+    _studentService = StudentService(studentBox, attendanceService);
+    _groupesService = GroupesService(groupBox);
+    _attendanceService = AttendanceService(attendanceBox);
+    _settingsService = SettingsService.instance;
+
+    await _studentService.initStudentsIfEmpty();
+    await _groupesService.insertGroups();
+
+    final groupes = await _groupesService.getGroupes();
+    final students = _studentService.getStudents();
+
     setState(() {
-      _isLoading = true;
+      _groupes = groupes;
+      _students = students;
+      _isInitialized = true;
     });
-
-    try {
-      // Récupérer les boxes Hive
-      final studentsBox = await Hive.openBox<Student>('students');
-      final groupsBox = await Hive.openBox<Group>('groups');
-
-      // Initialiser les services
-      _studentService = StudentService(studentsBox);
-      _groupesService = GroupesService(groupsBox);
-      _settingsService = SettingsService.instance;
-
-      // Insérer les données initiales si nécessaire
-      await _studentService.initStudentsIfEmpty();
-      await _groupesService.insertGroups();
-
-      // Charger les groupes
-      final groupes = await _groupesService.getGroupes();
-
-      setState(() {
-        _groupes = groupes;
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Erreur d\'initialisation: $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
   }
 
   @override
@@ -83,693 +72,232 @@ class _StudentsListPageState extends State<StudentsListPage> {
           student.prenom.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           student.matricule.toLowerCase().contains(_searchQuery.toLowerCase());
 
-      final matchesGroup =
-          _selectedGroupId == null || student.groupId == _selectedGroupId;
+      final matchesGroup = _selectedGroupId == null || student.groupId == _selectedGroupId;
 
       return matchesSearch && matchesGroup && student.isActive;
     }).toList();
   }
 
-  String _getStudentStatus(Student student) {
-    if (student.tauxAbsence >= 30) return 'Échec';
-    if (student.tauxAbsence >= 20) return 'Alerte';
-    return 'Normal';
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Échec':
-        return Colors.red;
-      case 'Alerte':
-        return Colors.orange;
-      default:
-        return Colors.green;
-    }
-  }
-
-  // 🔹 Méthode pour obtenir le nom complet du groupe
   String _getGroupDisplayName(int groupId) {
     final groupe = _groupes.firstWhere(
       (g) => g.id == groupId,
       orElse: () => Group(id: 0, numGroup: 0, filiere: 'Inconnu', niveau: 0),
     );
-    
+
     if (groupe.id == 0) return 'Groupe $groupId';
     return 'G${groupe.numGroup} - ${groupe.filiere} ${groupe.niveau}A';
   }
 
+  Color _getStatusColor(Student student) {
+    if (student.tauxAbsence >= 30) return Colors.red.shade600;
+    if (student.tauxAbsence >= 20) return Colors.orange.shade600;
+    return Colors.green.shade600;
+  }
+
+  IconData _getStatusIcon(Student student) {
+    if (student.tauxAbsence >= 30) return Icons.error;
+    if (student.tauxAbsence >= 20) return Icons.warning;
+    return Icons.check_circle;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.home),
-          onPressed: () {
-            Navigator.popUntil(context, (route) => route.isFirst);
-          },
-          tooltip: 'Retour à l\'accueil',
+    if (!_isInitialized) {
+      return Scaffold(
+        backgroundColor: Colors.grey.shade50,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade600),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Chargement des étudiants...',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
         ),
-        title: const Text('Liste des Étudiants'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                _buildSearchAndFilterSection(),
-                Expanded(
-                  // 🔹 Écouter les changements de settings ET de students
-                  child: ValueListenableBuilder<Box<SettingsModel>>(
-                    valueListenable: Hive.box<SettingsModel>('settings').listenable(),
-                    builder: (context, settingsBox, _) {
-                      final settings = _settingsService.getSettings();
-                      
-                      return ValueListenableBuilder(
-                        valueListenable: Hive.box<Student>('students').listenable(),
-                        builder: (context, Box<Student> studentsBox, _) {
-                          final allStudents = studentsBox.values.toList();
-                          final filteredStudents = _filterStudents(allStudents);
+      );
+    }
 
-                          if (filteredStudents.isEmpty) {
-                            return const Center(
-                              child: Text('Aucun étudiant trouvé'),
-                            );
-                          }
+    final filteredStudents = _filterStudents(_students);
 
-                          // 🔹 Affichage selon le mode (Liste ou Grille)
-                          return settings.modeAffichage == ModeAffichage.liste
-                              ? _buildListView(filteredStudents)
-                              : _buildGridView(filteredStudents);
-                        },
-                      );
-                    },
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        title: const Text(
+          'Liste des Étudiants',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue.shade700, Colors.blue.shade500],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${filteredStudents.length} étudiants',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
                   ),
                 ),
-              ],
+              ),
             ),
-    );
-  }
-
-  // 🔹 Vue en liste
-  Widget _buildListView(List<Student> students) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(8),
-      itemCount: students.length,
-      itemBuilder: (context, index) {
-        return StudentCard(
-          student: students[index],
-          groupDisplayName: students[index].groupId != null
-              ? _getGroupDisplayName(students[index].groupId!)
-              : 'Non assigné',
-        );
-      },
-    );
-  }
-
-  // 🔹 Vue en grille
-  Widget _buildGridView(List<Student> students) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2, // 2 colonnes
-        childAspectRatio: 0.75, // Ratio largeur/hauteur
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+          ),
+        ],
       ),
-      itemCount: students.length,
-      itemBuilder: (context, index) {
-        return StudentGridCard(
-          student: students[index],
-          groupDisplayName: students[index].groupId != null
-              ? _getGroupDisplayName(students[index].groupId!)
-              : 'Non assigné',
-        );
-      },
+      body: Column(
+        children: [
+          _buildSearchAndFilterSection(),
+          Expanded(
+            child: filteredStudents.isEmpty
+                ? _buildEmptyState()
+                : _buildStudentListView(filteredStudents),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildSearchAndFilterSection() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.grey[100],
-      child: Column(
-        children: [
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Rechercher (nom, prénom, matricule)...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        setState(() {
-                          _searchController.clear();
-                          _searchQuery = '';
-                        });
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              filled: true,
-              fillColor: Colors.white,
-            ),
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.white, Colors.grey.shade50],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade300,
+            blurRadius: 10,
+            offset: const Offset(0, 5),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Text('Groupe: ', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      FilterChip(
-                        label: const Text('Tous'),
-                        selected: _selectedGroupId == null,
-                        onSelected: (selected) {
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Barre de recherche moderne
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade200,
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Rechercher un étudiant...',
+                  hintStyle: TextStyle(color: Colors.grey.shade400),
+                  prefixIcon: Icon(Icons.search_rounded, color: Colors.blue.shade500, size: 24),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(Icons.clear, color: Colors.grey.shade600),
+                          onPressed: () {
+                            setState(() {
+                              _searchQuery = '';
+                              _searchController.clear();
+                            });
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Filtres de groupe
+            Row(
+              children: [
+                Icon(Icons.filter_list_rounded, color: Colors.grey.shade700, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Filtrer par groupe',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildFilterChip(
+                    label: 'Tous',
+                    isSelected: _selectedGroupId == null,
+                    count: _students.where((s) => s.isActive).length,
+                    onTap: () {
+                      setState(() {
+                        _selectedGroupId = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 10),
+                  ..._groupes.map((groupe) {
+                    final count = _students
+                        .where((s) => s.groupId == groupe.id && s.isActive)
+                        .length;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: _buildFilterChip(
+                        label: 'G${groupe.numGroup} ${groupe.filiere}',
+                        isSelected: _selectedGroupId == groupe.id,
+                        count: count,
+                        onTap: () {
                           setState(() {
-                            _selectedGroupId = null;
+                            _selectedGroupId = groupe.id;
                           });
                         },
                       ),
-                      const SizedBox(width: 8),
-                      // 🔹 Utilisation des groupes chargés depuis Hive
-                      ..._groupes.map((groupe) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: FilterChip(
-                            label: Text('G${groupe.numGroup} - ${groupe.filiere} ${groupe.niveau}A'),
-                            selected: _selectedGroupId == groupe.id,
-                            onSelected: (selected) {
-                              setState(() {
-                                _selectedGroupId = selected ? groupe.id : null;
-                              });
-                            },
-                          ),
-                        );
-                      }).toList(),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// 🔹 Card pour l'affichage en liste
-class StudentCard extends StatelessWidget {
-  final Student student;
-  final String groupDisplayName;
-
-  const StudentCard({
-    Key? key,
-    required this.student,
-    required this.groupDisplayName,
-  }) : super(key: key);
-
-  String _getStudentStatus(Student student) {
-    if (student.tauxAbsence >= 30) return 'Échec';
-    if (student.tauxAbsence >= 20) return 'Alerte';
-    return 'Normal';
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Échec':
-        return Colors.red;
-      case 'Alerte':
-        return Colors.orange;
-      default:
-        return Colors.green;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final status = _getStudentStatus(student);
-    final statusColor = _getStatusColor(status);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => StudentProfilePage(
-                student: student,
-                groupDisplayName: groupDisplayName,
-              ),
-            ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: Colors.blue[100],
-                backgroundImage: student.photoPath != null
-                    ? AssetImage(student.photoPath!)
-                    : null,
-                child: student.photoPath == null
-                    ? Text(
-                        '${student.prenom[0]}${student.nom[0]}',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${student.prenom} ${student.nom}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Matricule: ${student.matricule}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      groupDisplayName,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: statusColor),
-                    ),
-                    child: Text(
-                      status,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${student.tauxAbsence.toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: statusColor,
-                    ),
-                  ),
-                  Text(
-                    '${student.totalHeuresAbsence}h',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// 🔹 Nouvelle Card pour l'affichage en grille
-class StudentGridCard extends StatelessWidget {
-  final Student student;
-  final String groupDisplayName;
-
-  const StudentGridCard({
-    Key? key,
-    required this.student,
-    required this.groupDisplayName,
-  }) : super(key: key);
-
-  String _getStudentStatus(Student student) {
-    if (student.tauxAbsence >= 30) return 'Échec';
-    if (student.tauxAbsence >= 20) return 'Alerte';
-    return 'Normal';
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Échec':
-        return Colors.red;
-      case 'Alerte':
-        return Colors.orange;
-      default:
-        return Colors.green;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final status = _getStudentStatus(student);
-    final statusColor = _getStatusColor(status);
-
-    return Card(
-      elevation: 2,
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => StudentProfilePage(
-                student: student,
-                groupDisplayName: groupDisplayName,
-              ),
-            ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircleAvatar(
-                radius: 40,
-                backgroundColor: Colors.blue[100],
-                backgroundImage: student.photoPath != null
-                    ? AssetImage(student.photoPath!)
-                    : null,
-                child: student.photoPath == null
-                    ? Text(
-                        '${student.prenom[0]}${student.nom[0]}',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '${student.prenom} ${student.nom}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                student.matricule,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                groupDisplayName,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: statusColor),
-                ),
-                child: Text(
-                  status,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${student.tauxAbsence.toStringAsFixed(1)}%',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: statusColor,
-                ),
-              ),
-              Text(
-                '${student.totalHeuresAbsence}h',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class StudentProfilePage extends StatelessWidget {
-  final Student student;
-  final String groupDisplayName;
-
-  const StudentProfilePage({
-    Key? key,
-    required this.student,
-    required this.groupDisplayName,
-  }) : super(key: key);
-
-  String _getStudentStatus(Student student) {
-    if (student.tauxAbsence >= 30) return 'Échec';
-    if (student.tauxAbsence >= 20) return 'Alerte';
-    return 'Normal';
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Échec':
-        return Colors.red;
-      case 'Alerte':
-        return Colors.orange;
-      default:
-        return Colors.green;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final status = _getStudentStatus(student);
-    final statusColor = _getStatusColor(status);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profil Étudiant'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              _showEditDialog(context);
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.blue[400]!, Colors.blue[600]!],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Colors.white,
-                    backgroundImage: student.photoPath != null
-                        ? AssetImage(student.photoPath!)
-                        : null,
-                    child: student.photoPath == null
-                        ? Text(
-                            '${student.prenom[0]}${student.nom[0]}',
-                            style: const TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '${student.prenom} ${student.nom}',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      status,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Informations Personnelles',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  InfoRow(
-                    icon: Icons.badge,
-                    label: 'Matricule',
-                    value: student.matricule,
-                  ),
-                  InfoRow(
-                    icon: Icons.group,
-                    label: 'Groupe',
-                    value: groupDisplayName,
-                  ),
-                  const Divider(height: 32),
-                  const Text(
-                    'Statistiques d\'Absence',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: StatCard(
-                          icon: Icons.percent,
-                          label: 'Taux d\'absence',
-                          value: '${student.tauxAbsence.toStringAsFixed(1)}%',
-                          color: statusColor,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: StatCard(
-                          icon: Icons.access_time,
-                          label: 'Heures manquées',
-                          value: '${student.totalHeuresAbsence}h',
-                          color: Colors.blue,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        _showJustifyAbsenceDialog(context);
-                      },
-                      icon: const Icon(Icons.check_circle),
-                      label: const Text('Justifier une absence'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.all(16),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        _showAbsenceHistory(context);
-                      },
-                      icon: const Icon(Icons.history),
-                      label: const Text('Historique d\'absences'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.all(16),
-                      ),
-                    ),
-                  ),
+                    );
+                  }).toList(),
                 ],
               ),
             ),
@@ -779,188 +307,279 @@ class StudentProfilePage extends StatelessWidget {
     );
   }
 
-  void _showEditDialog(BuildContext context) {
-    final nomController = TextEditingController(text: student.nom);
-    final prenomController = TextEditingController(text: student.prenom);
-    final matriculeController = TextEditingController(text: student.matricule);
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required int count,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(25),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: [Colors.blue.shade700, Colors.blue.shade500],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                )
+              : null,
+          color: isSelected ? null : Colors.white,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(
+            color: isSelected ? Colors.transparent : Colors.grey.shade300,
+            width: 1.5,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.blue.shade500.withOpacity(0.5),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : [],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey.shade700,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withOpacity(0.3)
+                    : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.grey.shade700,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Modifier les données'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nomController,
-                decoration: const InputDecoration(labelText: 'Nom'),
-              ),
-              TextField(
-                controller: prenomController,
-                decoration: const InputDecoration(labelText: 'Prénom'),
-              ),
-              TextField(
-                controller: matriculeController,
-                decoration: const InputDecoration(labelText: 'Matricule'),
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.search_off_rounded,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Aucun étudiant trouvé',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Essayez de modifier vos filtres',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStudentListView(List<Student> students) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: students.length,
+      itemBuilder: (context, index) {
+        final student = students[index];
+        final statusColor = _getStatusColor(student);
+        final statusIcon = _getStatusIcon(student);
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.shade200,
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              student.nom = nomController.text;
-              student.prenom = prenomController.text;
-              student.matricule = matriculeController.text;
-              student.save();
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Données modifiées avec succès')),
-              );
-            },
-            child: const Text('Enregistrer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showJustifyAbsenceDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Justifier une absence'),
-        content: const Text(
-          'Fonctionnalité de justification d\'absence.\nVous pouvez implémenter ici la logique pour réduire les heures d\'absence.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAbsenceHistory(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Historique d\'absences'),
-        content: const Text(
-          'Historique des absences de l\'étudiant.\nVous pouvez afficher ici la liste détaillée des absences par date et matière.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const InfoRow({
-    Key? key,
-    required this.icon,
-    required this.label,
-    required this.value,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.blue),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => StudentProfilePage(
+                      student: student,
+                      groupDisplayName: _getGroupDisplayName(student.groupId!),
+                    ),
                   ),
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // Avatar
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.blue.shade700, Colors.blue.shade500],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.shade500.withOpacity(0.4),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: student.photoPath != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Image.asset(
+                                student.photoPath!,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                '${student.prenom[0]}${student.nom[0]}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 16),
+                    
+                    // Informations de l'étudiant
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${student.prenom} ${student.nom}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.badge_outlined,
+                                size: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                student.matricule,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.groups_outlined,
+                                size: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _getGroupDisplayName(student.groupId!),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Badge de statut
+                    Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            statusIcon,
+                            color: statusColor,
+                            size: 24,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                      color: Colors.grey.shade400,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class StatCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  const StatCard({
-    Key? key,
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

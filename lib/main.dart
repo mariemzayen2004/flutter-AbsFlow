@@ -30,8 +30,8 @@ void main() async {
   final hive = HiveService.instance;
 
   // 3. Création des services
-  studentService = StudentService(hive.studentsBox);
   attendanceService = AttendanceService(hive.attendancesBox);
+  studentService = StudentService(hive.studentsBox,attendanceService);
   alertService = AlertService(hive.alertsBox, studentService);
   groupesService = GroupesService(hive.groupsBox);
   sessionService = SessionService(hive.sessionsBox);
