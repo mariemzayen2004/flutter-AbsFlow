@@ -1,14 +1,26 @@
 import 'package:hive/hive.dart';
 
 import '../models/student/student.dart';
+import 'attendance_service.dart';
 
 class StudentService {
   final Box<Student> _studentBox;
+  late AttendanceService _attendanceService;
 
-  StudentService(this._studentBox);
-
+  StudentService(this._studentBox, AttendanceService attendanceService) {
+    _attendanceService = attendanceService;
+  }
+  
   // Getter pour _studentBox
   Box<Student> get studentBox => _studentBox;
+  
+  // Getter pour AttendanceService
+  AttendanceService get attendanceService => _attendanceService;
+
+  // Setter pour AttendanceService
+  set attendanceService(AttendanceService service) {
+    _attendanceService = service;
+  }
 
   // À appeler au démarrage de l'appli
   Future<void> initStudentsIfEmpty() async {
@@ -77,4 +89,15 @@ class StudentService {
 
     return results.toList();
   }
+
+  // Mettre à jour le total des heures manquées d'un étudiant
+  Future<void> updateTotalHeuresAbsence(int studentId) async {
+    final student = getStudentById(studentId);
+    if (student != null) {
+      final totalHeuresAbsence = _attendanceService.getTotalHeuresManquees(studentId);
+      student.totalHeuresAbsence = totalHeuresAbsence;
+      await student.save(); // Enregistrer les modifications dans Hive
+    }
+  }
+  
 }

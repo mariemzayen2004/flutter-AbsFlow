@@ -70,7 +70,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     _subjectService = SubjectService(hive.subjectsBox);
     _settingsService = SettingsService.instance;
     _sessionService = SessionService(hive.sessionsBox);
-    _studentService = StudentService(hive.studentsBox);
+    _studentService = StudentService(hive.studentsBox,attendanceService);
     _alertService = AlertService(hive.alertsBox, _studentService);
     _attendanceService = AttendanceService(hive.attendancesBox);
 

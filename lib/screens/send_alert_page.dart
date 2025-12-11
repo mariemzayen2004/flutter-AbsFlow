@@ -1,3 +1,4 @@
+import 'package:abs_flow/main.dart';
 import 'package:flutter/material.dart';
 import '../models/alert/alert.dart';
 import '../models/group/group.dart';
@@ -39,7 +40,7 @@ class _SendAlertPageState extends State<SendAlertPage> {
     super.initState();
 
     final hive = HiveService.instance;
-    _studentService = StudentService(hive.studentsBox);
+    _studentService = StudentService(hive.studentsBox,attendanceService);
     _alertService = AlertService(hive.alertsBox, _studentService);
     _settingsService = SettingsService.instance;
     _groupesService = GroupesService(hive.groupsBox);

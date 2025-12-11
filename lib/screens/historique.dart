@@ -1,3 +1,4 @@
+import 'package:abs_flow/main.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import '../services/hive_service.dart';
@@ -37,7 +38,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
     final hive = HiveService.instance;
     _sessionService = SessionService(hive.sessionsBox);
     _attendanceService = AttendanceService(hive.attendancesBox);
-    _studentService = StudentService(hive.studentsBox);
+    _studentService = StudentService(hive.studentsBox,attendanceService);
     _groupesService = GroupesService(hive.groupsBox);
     _subjectService = SubjectService(hive.subjectsBox);
 
