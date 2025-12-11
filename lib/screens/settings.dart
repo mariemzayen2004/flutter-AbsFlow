@@ -28,11 +28,11 @@ class _SettingsPageState extends State<SettingsPage> {
   List<Subject> _subjects = [];
   Subject? _selectedSubject;
   
-  // Contrôleurs pour les seuils globaux (en heures)
-  final TextEditingController _globalSeuilAlerteController = TextEditingController();
-  final TextEditingController _globalSeuilEliminationController = TextEditingController();
+  // Contrôleurs pour les seuils globaux
+  final TextEditingController _globalAlerteController = TextEditingController();
+  final TextEditingController _globalEliminationController = TextEditingController();
   
-  // Contrôleurs pour les seuils par matière (en heures)
+  // Contrôleurs pour les seuils par matière
   final TextEditingController _subjectAlerteController = TextEditingController();
   final TextEditingController _subjectEliminationController = TextEditingController();
   
@@ -63,14 +63,13 @@ class _SettingsPageState extends State<SettingsPage> {
       _subjects = _subjectService.getSubjects();
       if (_subjects.isNotEmpty) {
         _selectedSubject = _subjects.first;
-        _loadSubjectThresholds(_selectedSubject!);
+        await _loadSubjectThresholds(_selectedSubject!);
       }
       
-      final currentSettings = _settingsService.getSettings();
-      
-      // Initialiser les contrôleurs globaux (en heures)
-      _globalSeuilAlerteController.text = currentSettings.seuilAvertissement.toString();
-      _globalSeuilEliminationController.text = currentSettings.seuilElimination.toString();
+      // Charger les seuils globaux
+      final globalSettings = _settingsService.getSettings();
+      _globalAlerteController.text = globalSettings.seuilAvertissement.toString();
+      _globalEliminationController.text = globalSettings.seuilElimination.toString();
       
     } catch (e) {
       print('Erreur d\'initialisation: $e');
@@ -82,85 +81,131 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  void _updateGlobalSeuilAlerte(String value) {
-    final intValue = int.tryParse(value);
-    if (intValue != null && intValue >= 0) {
-      final currentSettings = _settingsService.getSettings();
-      _settingsService.mettreAJourSeuils(
-        intValue,
-        currentSettings.seuilElimination,
-      );
-      _globalSeuilAlerteController.text = intValue.toString();
-    }
-  }
-
-  void _updateGlobalSeuilElimination(String value) {
-    final intValue = int.tryParse(value);
-    if (intValue != null && intValue >= 0) {
-      final currentSettings = _settingsService.getSettings();
-      _settingsService.mettreAJourSeuils(
-        currentSettings.seuilAvertissement,
-        intValue,
-      );
-      _globalSeuilEliminationController.text = intValue.toString();
-    }
-  }
-
   void _toggleDarkMode(bool value) {
     _settingsService.mettreAJourTheme(value);
-    // Le setState n'est pas nécessaire car ValueListenableBuilder s'en charge
   }
 
   void _changeDisplayMode(ModeAffichage mode) {
     _settingsService.mettreAJourModeAffichage(mode);
-    setState(() {}); // Rafraîchir l'UI locale
+    setState(() {});
   }
 
-  Future<void> _loadSubjectThresholds(Subject subject) async {
+  // Sauvegarder les seuils GLOBAUX
+  Future<void> _saveGlobalThresholds() async {
+    final seuilAlerte = int.tryParse(_globalAlerteController.text);
+    final seuilElimination = int.tryParse(_globalEliminationController.text);
+    
+    if (seuilAlerte == null || seuilElimination == null) {
+      _showErrorSnackBar('Veuillez entrer des valeurs valides (nombres positifs)');
+      return;
+    }
+    
+    if (seuilAlerte < 0 || seuilElimination < 0) {
+      _showErrorSnackBar('Les valeurs doivent être positives');
+      return;
+    }
+    
+    if (seuilAlerte >= seuilElimination) {
+      _showErrorSnackBar('Le seuil d\'alerte doit être inférieur au seuil d\'élimination');
+      return;
+    }
+    
     try {
-      final box = await Hive.openBox('subject_thresholds');
-      final data = box.get('subject_${subject.id}');
-      
-      if (data != null) {
-        final thresholds = data as Map<String, dynamic>;
-        _subjectAlerteController.text = thresholds['seuilAlerte'].toString();
-        _subjectEliminationController.text = thresholds['seuilElimination'].toString();
-      } else {
-        _subjectAlerteController.text = '4';
-        _subjectEliminationController.text = '5';
-      }
+      _settingsService.mettreAJourSeuils(seuilAlerte, seuilElimination);
+      _showSuccessSnackBar('Seuils globaux sauvegardés (${seuilAlerte}h alerte / ${seuilElimination}h élimination)');
     } catch (e) {
-      print('Erreur lors du chargement des seuils: $e');
-      _subjectAlerteController.text = '4';
-      _subjectEliminationController.text = '5';
+      _showErrorSnackBar('Erreur lors de la sauvegarde: $e');
     }
   }
 
+  // Charger les seuils PAR MATIÈRE
+  Future<void> _loadSubjectThresholds(Subject subject) async {
+    try {
+      final thresholds = await _settingsService.getSeuilsParMatiere(subject.id.toString());  // Ajouter .toString()
+      
+      if (thresholds != null) {
+        _subjectAlerteController.text = thresholds['seuilAlerte'].toString();
+        _subjectEliminationController.text = thresholds['seuilElimination'].toString();
+      }
+    } catch (e) {
+      print('Erreur lors du chargement des seuils: $e');
+      final globalSettings = _settingsService.getSettings();
+      _subjectAlerteController.text = globalSettings.seuilAvertissement.toString();
+      _subjectEliminationController.text = globalSettings.seuilElimination.toString();
+    }
+  }
+
+  // Sauvegarder les seuils PAR MATIÈRE
   Future<void> _saveSubjectThresholds() async {
     if (_selectedSubject == null) return;
     
     final seuilAlerte = int.tryParse(_subjectAlerteController.text);
     final seuilElimination = int.tryParse(_subjectEliminationController.text);
     
-    if (seuilAlerte != null && seuilElimination != null && 
-        seuilAlerte >= 0 && seuilElimination >= 0) {
-      
-      try {
-        final box = await Hive.openBox('subject_thresholds');
-        await box.put('subject_${_selectedSubject!.id}', {
-          'seuilAlerte': seuilAlerte,
-          'seuilElimination': seuilElimination,
-          'subjectId': _selectedSubject!.id,
-          'subjectName': _selectedSubject!.nom,
-          'updatedAt': DateTime.now().toIso8601String(),
-        });
-        
-        _showSuccessSnackBar('Seuils pour ${_selectedSubject!.nom} sauvegardés');
-      } catch (e) {
-        _showErrorSnackBar('Erreur lors de la sauvegarde: $e');
-      }
-    } else {
+    if (seuilAlerte == null || seuilElimination == null) {
       _showErrorSnackBar('Veuillez entrer des valeurs valides (nombres positifs)');
+      return;
+    }
+    
+    if (seuilAlerte < 0 || seuilElimination < 0) {
+      _showErrorSnackBar('Les valeurs doivent être positives');
+      return;
+    }
+    
+    if (seuilAlerte >= seuilElimination) {
+      _showErrorSnackBar('Le seuil d\'alerte doit être inférieur au seuil d\'élimination');
+      return;
+    }
+    
+    try {
+      await _settingsService.mettreAJourSeuilsParMatiere(
+        subjectId: _selectedSubject!.id.toString(),  
+        subjectName: _selectedSubject!.nom,
+        seuilAlerte: seuilAlerte,
+        seuilElimination: seuilElimination,
+      );
+      
+      _showSuccessSnackBar('Seuils pour ${_selectedSubject!.nom} sauvegardés (${seuilAlerte}h alerte / ${seuilElimination}h élimination)');
+    } catch (e) {
+      _showErrorSnackBar('Erreur lors de la sauvegarde: $e');
+    }
+  }
+
+  // Supprimer les seuils PAR MATIÈRE (réinitialiser aux seuils globaux)
+  Future<void> _deleteSubjectThresholds() async {
+    if (_selectedSubject == null) return;
+    
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmation'),
+        content: Text(
+          'Voulez-vous réinitialiser les seuils de ${_selectedSubject!.nom} aux valeurs globales ?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+            ),
+            child: const Text('Réinitialiser'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _settingsService.supprimerSeuilsParMatiere(_selectedSubject!.id.toString());  // Ajouter .toString()
+        await _loadSubjectThresholds(_selectedSubject!);
+        _showSuccessSnackBar('Seuils de ${_selectedSubject!.nom} réinitialisés aux valeurs globales');
+      } catch (e) {
+        _showErrorSnackBar('Erreur lors de la réinitialisation: $e');
+      }
     }
   }
 
@@ -197,17 +242,11 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _isLoading = true);
       
       try {
-        // Réinitialiser les paramètres
-        final newSettings = SettingsModel(
-          seuilAvertissement: 4,
-          seuilElimination: 5,
-          isDarkMode: false,
-          modeAffichage: ModeAffichage.liste,
-        );
-        await Hive.box<SettingsModel>('settings').put('current', newSettings);
+        // Réinitialiser les paramètres via le service
+        _settingsService.initialiserSettingsParDefaut();
         
         // Vider les autres boxes
-        final boxesToClear = ['absences', 'pedagogical_events', 'events', 'alerts', 'subject_thresholds'];
+        final boxesToClear = ['absences', 'pedagogical_events', 'events', 'subject_thresholds'];
         for (var boxName in boxesToClear) {
           if (Hive.isBoxOpen(boxName)) {
             await Hive.box(boxName).clear();
@@ -216,12 +255,13 @@ class _SettingsPageState extends State<SettingsPage> {
         
         _showSuccessSnackBar('Données réinitialisées avec succès');
         
-        // Réinitialiser les contrôleurs
-        _globalSeuilAlerteController.text = '4';
-        _globalSeuilEliminationController.text = '5';
+        // Recharger les valeurs
+        final globalSettings = _settingsService.getSettings();
+        _globalAlerteController.text = globalSettings.seuilAvertissement.toString();
+        _globalEliminationController.text = globalSettings.seuilElimination.toString();
+        
         if (_selectedSubject != null) {
-          _subjectAlerteController.text = '4';
-          _subjectEliminationController.text = '5';
+          await _loadSubjectThresholds(_selectedSubject!);
         }
         
       } catch (e) {
@@ -302,12 +342,13 @@ class _SettingsPageState extends State<SettingsPage> {
           
           await _restoreData(data);
           
-          final currentSettings = _settingsService.getSettings();
-          _globalSeuilAlerteController.text = currentSettings.seuilAvertissement.toString();
-          _globalSeuilEliminationController.text = currentSettings.seuilElimination.toString();
+          // Recharger les valeurs
+          final globalSettings = _settingsService.getSettings();
+          _globalAlerteController.text = globalSettings.seuilAvertissement.toString();
+          _globalEliminationController.text = globalSettings.seuilElimination.toString();
           
           if (_selectedSubject != null) {
-            _loadSubjectThresholds(_selectedSubject!);
+            await _loadSubjectThresholds(_selectedSubject!);
           }
           
           _showSuccessSnackBar('Données importées avec succès');
@@ -324,7 +365,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<Map<String, dynamic>> _collectAllData() async {
     final Map<String, dynamic> data = {};
     
-    final boxes = ['settings', 'absences', 'pedagogical_events', 'events', 'groups', 'subjects', 'alerts', 'subject_thresholds'];
+    final boxes = ['settings', 'absences', 'pedagogical_events', 'events', 'groups', 'subjects', 'subject_thresholds'];
     
     for (var boxName in boxes) {
       if (Hive.isBoxOpen(boxName)) {
@@ -434,8 +475,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
-    _globalSeuilAlerteController.dispose();
-    _globalSeuilEliminationController.dispose();
+    _globalAlerteController.dispose();
+    _globalEliminationController.dispose();
     _subjectAlerteController.dispose();
     _subjectEliminationController.dispose();
     super.dispose();
@@ -509,37 +550,11 @@ class _SettingsPageState extends State<SettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Définir les seuils d\'alerte et d\'élimination globaux',
+              'Seuils d\'alerte et d\'élimination globaux',
               style: TextStyle(
                 fontWeight: FontWeight.w500,
                 color: isDarkMode ? Colors.white : Colors.black,
               ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildThresholdField(
-                    label: 'Seuil d\'alerte (heures)',
-                    controller: _globalSeuilAlerteController,
-                    onChanged: _updateGlobalSeuilAlerte,
-                    icon: Icons.warning,
-                    color: Colors.orange,
-                    isDarkMode: isDarkMode,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildThresholdField(
-                    label: 'Seuil d\'élimination (heures)',
-                    controller: _globalSeuilEliminationController,
-                    onChanged: _updateGlobalSeuilElimination,
-                    icon: Icons.block,
-                    color: Colors.red,
-                    isDarkMode: isDarkMode,
-                  ),
-                ),
-              ],
             ),
             const SizedBox(height: 8),
             Text(
@@ -547,6 +562,63 @@ class _SettingsPageState extends State<SettingsPage> {
               style: TextStyle(
                 fontSize: 12,
                 color: isDarkMode ? Colors.grey[400] : Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _globalAlerteController,
+                    decoration: InputDecoration(
+                      labelText: 'Seuil alerte (heures)',
+                      border: OutlineInputBorder(),
+                      filled: isDarkMode,
+                      fillColor: isDarkMode ? Colors.grey[700] : null,
+                      prefixIcon: Icon(Icons.warning, color: Colors.orange),
+                      labelStyle: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black,
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextField(
+                    controller: _globalEliminationController,
+                    decoration: InputDecoration(
+                      labelText: 'Seuil élimination (heures)',
+                      border: OutlineInputBorder(),
+                      filled: isDarkMode,
+                      fillColor: isDarkMode ? Colors.grey[700] : null,
+                      prefixIcon: Icon(Icons.block, color: Colors.red),
+                      labelStyle: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black,
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _saveGlobalThresholds,
+              icon: Icon(Icons.save),
+              label: Text('Sauvegarder les seuils globaux'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                minimumSize: Size(double.infinity, 48),
               ),
             ),
           ],
@@ -571,6 +643,15 @@ class _SettingsPageState extends State<SettingsPage> {
                 color: isDarkMode ? Colors.white : Colors.black,
               ),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Ces seuils remplacent les seuils globaux pour la matière sélectionnée',
+              style: TextStyle(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
             const SizedBox(height: 16),
             
             DropdownButtonFormField<Subject>(
@@ -589,7 +670,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 return DropdownMenuItem<Subject>(
                   value: subject,
                   child: Text(
-                    '${subject.nom} - ${subject.enseignant}',
+                    subject.nom,
                     style: TextStyle(
                       color: isDarkMode ? Colors.white : Colors.black,
                     ),
@@ -671,15 +752,34 @@ class _SettingsPageState extends State<SettingsPage> {
               
               const SizedBox(height: 16),
               
-              ElevatedButton.icon(
-                onPressed: _saveSubjectThresholds,
-                icon: Icon(Icons.save),
-                label: Text('Sauvegarder les seuils'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  minimumSize: Size(double.infinity, 48),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _saveSubjectThresholds,
+                      icon: Icon(Icons.save),
+                      label: Text('Sauvegarder'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        minimumSize: Size(double.infinity, 48),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _deleteSubjectThresholds,
+                      icon: Icon(Icons.restore),
+                      label: Text('Réinitialiser'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        minimumSize: Size(double.infinity, 48),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ] else ...[
               Center(
@@ -697,36 +797,6 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildThresholdField({
-    required String label,
-    required TextEditingController controller,
-    required Function(String) onChanged,
-    required IconData icon,
-    required Color color,
-    required bool isDarkMode,
-  }) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: color),
-        border: OutlineInputBorder(),
-        suffixText: 'h',
-        filled: isDarkMode,
-        fillColor: isDarkMode ? Colors.grey[700] : null,
-        labelStyle: TextStyle(
-          color: isDarkMode ? Colors.white : Colors.black,
-        ),
-      ),
-      style: TextStyle(
-        color: isDarkMode ? Colors.white : Colors.black,
-      ),
-      keyboardType: TextInputType.number,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      onChanged: onChanged,
     );
   }
 
