@@ -37,13 +37,87 @@ class SettingsService {
     return settings;
   }
 
-  // mettreAJourSeuils(seuilAvertissement, seuilElimination)
+  // mettreAJourSeuils(seuilAvertissement, seuilElimination) → Seuils GLOBAUX
   SettingsModel mettreAJourSeuils(int seuilAvertissement, int seuilElimination) {
     final settings = getSettings();
     settings.seuilAvertissement = seuilAvertissement;
     settings.seuilElimination = seuilElimination;
     settings.save();
     return settings;
+  }
+
+  // mettreAJourSeuilsParMatiere(subjectId, seuilAlerte, seuilElimination) → Seuils PAR MATIÈRE
+  Future<Map<String, dynamic>> mettreAJourSeuilsParMatiere({
+    required String subjectId,
+    required String subjectName,
+    required int seuilAlerte,
+    required int seuilElimination,
+  }) async {
+    // Ouvrir ou récupérer la box des seuils par matière
+    Box box;
+    if (Hive.isBoxOpen('subject_thresholds')) {
+      box = Hive.box('subject_thresholds');
+    } else {
+      box = await Hive.openBox('subject_thresholds');
+    }
+
+    // Créer l'objet des seuils
+    final thresholds = {
+      'seuilAlerte': seuilAlerte,
+      'seuilElimination': seuilElimination,
+      'subjectId': subjectId,
+      'subjectName': subjectName,
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+
+    // Sauvegarder
+    await box.put('subject_$subjectId', thresholds);
+    
+    return thresholds;
+  }
+
+  // getSeuilsParMatiere(subjectId) → Récupérer les seuils d'une matière
+  Future<Map<String, dynamic>?> getSeuilsParMatiere(String subjectId) async {
+    try {
+      Box box;
+      if (Hive.isBoxOpen('subject_thresholds')) {
+        box = Hive.box('subject_thresholds');
+      } else {
+        box = await Hive.openBox('subject_thresholds');
+      }
+
+      final data = box.get('subject_$subjectId');
+      if (data != null) {
+        return Map<String, dynamic>.from(data);
+      }
+      
+      // Si pas de seuils spécifiques, retourner les seuils globaux
+      final globalSettings = getSettings();
+      return {
+        'seuilAlerte': globalSettings.seuilAvertissement,
+        'seuilElimination': globalSettings.seuilElimination,
+        'isGlobal': true,
+      };
+    } catch (e) {
+      print('Erreur lors de la récupération des seuils: $e');
+      return null;
+    }
+  }
+
+  // supprimerSeuilsParMatiere(subjectId) → Supprimer les seuils personnalisés d'une matière
+  Future<void> supprimerSeuilsParMatiere(String subjectId) async {
+    try {
+      Box box;
+      if (Hive.isBoxOpen('subject_thresholds')) {
+        box = Hive.box('subject_thresholds');
+      } else {
+        box = await Hive.openBox('subject_thresholds');
+      }
+
+      await box.delete('subject_$subjectId');
+    } catch (e) {
+      print('Erreur lors de la suppression des seuils: $e');
+    }
   }
 
   // mettreAJourTheme(isDarkMode)
