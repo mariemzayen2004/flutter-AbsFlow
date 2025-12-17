@@ -1,5 +1,7 @@
 import 'package:abs_flow/main.dart';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';  // AJOUTÉ pour ValueListenableBuilder
 import '../models/group/group.dart';
 import '../models/subject/subject.dart';
 import '../models/student/student.dart';
@@ -117,7 +119,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     });
   }
 
-  Future<void> _pickTimeDebut() async {
+  Future<void> _pickTimeDebut(bool isDarkMode) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: _heureDebut,
@@ -125,7 +127,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: Colors.blue.shade700,
+              primary: isDarkMode ? Colors.blue[700]! : Colors.blue.shade700,
               onPrimary: Colors.white,
             ),
           ),
@@ -140,7 +142,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     }
   }
 
-  Future<void> _pickTimeFin() async {
+  Future<void> _pickTimeFin(bool isDarkMode) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: _heureFin,
@@ -148,7 +150,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: Colors.blue.shade700,
+              primary: isDarkMode ? Colors.blue[700]! : Colors.blue.shade700,
               onPrimary: Colors.white,
             ),
           ),
@@ -250,7 +252,6 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
         );
         
         print("Nombre d'heures manquées pour ${student.prenom} ${student.nom}: $heuresManquees");
-        //await _verifierSeuilsEtGenererAlerte(student.id);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -296,34 +297,6 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     }
   }
 
-  // Future<void> _verifierSeuilsEtGenererAlerte(int studentId) async {
-  //   final settings = _settingsService.getSettings();
-  //   final attendances = _attendanceService.getAttendanceByStudent(studentId);
-
-  //   final totalHeuresAbsence = attendances.fold<int>(
-  //     0,
-  //     (sum, a) => sum + a.heuresManquees,
-  //   );
-
-  //   AlertLevel? niveau;
-
-  //   if (totalHeuresAbsence >= settings.seuilElimination) {
-  //     niveau = AlertLevel.elimination;
-  //   } else if (totalHeuresAbsence >= settings.seuilAvertissement) {
-  //     niveau = AlertLevel.avertissement;
-  //   }
-
-  //   if (niveau == null) return;
-
-  //   final alerte = await _alertService.creerAlerte(
-  //     studentId: studentId,
-  //     totalHeuresAbsence: totalHeuresAbsence,
-  //     niveau: niveau,
-  //   );
-
-  //   await _alertService.envoyerAlerteEmail(alerte.id);
-  // }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -346,129 +319,141 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        title: const Text(
-          'Prise d\'appel',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.blue.shade700, Colors.blue.shade500],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+    // ============= MODIFIÉ: Ajout du ValueListenableBuilder =============
+    return ValueListenableBuilder(
+      valueListenable: Hive.box<SettingsModel>('settings').listenable(),
+      builder: (context, Box<SettingsModel> box, _) {
+        final settings = _settingsService.getSettings();
+        final isDarkMode = settings.isDarkMode;
+
+        return Scaffold(
+          appBar: AppBar(
+            elevation: 0,
+            title: const Text(
+              'Prise d\'appel',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-          ),
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: IconButton(
-              onPressed: () {
-                setState(() {
-                  _modeAffichage = _modeAffichage == ModeAffichage.grille
-                      ? ModeAffichage.liste
-                      : ModeAffichage.grille;
-                });
-                _settingsService.mettreAJourModeAffichage(_modeAffichage);
-              },
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
+            flexibleSpace: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDarkMode
+                      ? [Colors.grey[850]!, Colors.grey[800]!]
+                      : [Colors.blue.shade700, Colors.blue.shade500],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                child: Icon(_modeAffichage == ModeAffichage.grille
-                    ? Icons.view_list
-                    : Icons.grid_view),
               ),
-              tooltip: 'Changer affichage',
             ),
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.blue.shade50.withOpacity(0.3),
-              Colors.white,
-            ],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSelectionCard(),
-              const SizedBox(height: 16),
-              _buildTimeCard(),
-              const SizedBox(height: 16),
-              Expanded(
-                child: (_selectedGroup == null || _selectedSubject == null)
-                    ? _buildEmptyState()
-                    : _students.isEmpty
-                        ? _buildNoStudentsState()
-                        : _modeAffichage == ModeAffichage.grille
-                            ? _buildStudentsGrid()
-                            : _buildStudentsList(),
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: ElevatedButton.icon(
-            onPressed: _isSaving ? null : _validerSeance,
-            icon: _isSaving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            actions: [
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                child: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _modeAffichage = _modeAffichage == ModeAffichage.grille
+                          ? ModeAffichage.liste
+                          : ModeAffichage.grille;
+                    });
+                    _settingsService.mettreAJourModeAffichage(_modeAffichage);
+                  },
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                  )
-                : const Icon(Icons.check_circle_outline, size: 24),
-            label: Text(
-              _isSaving ? 'Enregistrement...' : 'Valider la séance',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade700,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                    child: Icon(_modeAffichage == ModeAffichage.grille
+                        ? Icons.view_list
+                        : Icons.grid_view),
+                  ),
+                  tooltip: 'Changer affichage',
+                ),
               ),
-              elevation: 0,
+            ],
+          ),
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: isDarkMode
+                    ? [Colors.grey[850]!.withOpacity(0.3), Colors.grey[900]!]
+                    : [Colors.blue.shade50.withOpacity(0.3), Colors.white],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSelectionCard(isDarkMode),
+                  const SizedBox(height: 16),
+                  _buildTimeCard(isDarkMode),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: (_selectedGroup == null || _selectedSubject == null)
+                        ? _buildEmptyState(isDarkMode)
+                        : _students.isEmpty
+                            ? _buildNoStudentsState(isDarkMode)
+                            : _modeAffichage == ModeAffichage.grille
+                                ? _buildStudentsGrid(isDarkMode)
+                                : _buildStudentsList(isDarkMode),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+          bottomNavigationBar: Container(
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey[850] : Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: ElevatedButton.icon(
+                onPressed: _isSaving ? null : _validerSeance,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.check_circle_outline, size: 24),
+                label: Text(
+                  _isSaving ? 'Enregistrement...' : 'Valider la séance',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDarkMode ? Colors.blue[700] : Colors.blue.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildSelectionCard() {
+
+  Widget _buildSelectionCard(bool isDarkMode) {
     return Card(
       elevation: 3,
+      color: isDarkMode ? Colors.grey[850] : null,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -480,17 +465,23 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: isDarkMode
+                        ? Colors.blue[900]!.withOpacity(0.3)
+                        : Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(Icons.settings, color: Colors.blue.shade700),
+                  child: Icon(
+                    Icons.settings,
+                    color: isDarkMode ? Colors.blue[300] : Colors.blue.shade700,
+                  ),
                 ),
                 const SizedBox(width: 12),
-                const Text(
+                Text(
                   'Configuration de la séance',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: isDarkMode ? Colors.white : Colors.black,
                   ),
                 ),
               ],
@@ -501,22 +492,37 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                 Expanded(
                   child: DropdownButtonFormField<Group>(
                     value: _selectedGroup,
+                    dropdownColor: isDarkMode ? Colors.grey[800] : null,
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Groupe',
-                      prefixIcon: Icon(Icons.group, color: Colors.blue.shade700),
+                      labelStyle: TextStyle(
+                        color: isDarkMode ? Colors.grey[400] : null,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.group,
+                        color: isDarkMode ? Colors.blue[300] : Colors.blue.shade700,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: BorderSide(
+                          color: isDarkMode ? Colors.grey[700]! : Colors.grey.shade300,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.blue.shade700, width: 2),
+                        borderSide: BorderSide(
+                          color: isDarkMode ? Colors.blue[400]! : Colors.blue.shade700,
+                          width: 2,
+                        ),
                       ),
                       filled: true,
-                      fillColor: Colors.grey.shade50,
+                      fillColor: isDarkMode ? Colors.grey[800] : Colors.grey.shade50,
                     ),
                     items: _groupes
                         .map(
@@ -524,8 +530,9 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                             value: g,
                             child: Text(
                               'G${g.numGroup} - ${g.filiere} ${g.niveau}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w600,
+                                color: isDarkMode ? Colors.white : Colors.black,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -543,22 +550,37 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                 Expanded(
                   child: DropdownButtonFormField<Subject>(
                     value: _selectedSubject,
+                    dropdownColor: isDarkMode ? Colors.grey[800] : null,
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Matière',
-                      prefixIcon: Icon(Icons.book, color: Colors.blue.shade700),
+                      labelStyle: TextStyle(
+                        color: isDarkMode ? Colors.grey[400] : null,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.book,
+                        color: isDarkMode ? Colors.blue[300] : Colors.blue.shade700,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: BorderSide(
+                          color: isDarkMode ? Colors.grey[700]! : Colors.grey.shade300,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.blue.shade700, width: 2),
+                        borderSide: BorderSide(
+                          color: isDarkMode ? Colors.blue[400]! : Colors.blue.shade700,
+                          width: 2,
+                        ),
                       ),
                       filled: true,
-                      fillColor: Colors.grey.shade50,
+                      fillColor: isDarkMode ? Colors.grey[800] : Colors.grey.shade50,
                     ),
                     items: _subjects
                         .map(
@@ -566,7 +588,10 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                             value: s,
                             child: Text(
                               s.nom,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: isDarkMode ? Colors.white : Colors.black,
+                              ),
                             ),
                           ),
                         )
@@ -586,9 +611,10 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     );
   }
 
-  Widget _buildTimeCard() {
+  Widget _buildTimeCard(bool isDarkMode) {
     return Card(
       elevation: 3,
+      color: isDarkMode ? Colors.grey[850] : null,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -600,17 +626,23 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
+                    color: isDarkMode
+                        ? Colors.orange[900]!.withOpacity(0.3)
+                        : Colors.orange.shade50,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(Icons.schedule, color: Colors.orange.shade700),
+                  child: Icon(
+                    Icons.schedule,
+                    color: isDarkMode ? Colors.orange[300] : Colors.orange.shade700,
+                  ),
                 ),
                 const SizedBox(width: 12),
-                const Text(
+                Text(
                   'Horaires de la séance',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: isDarkMode ? Colors.white : Colors.black,
                   ),
                 ),
               ],
@@ -620,18 +652,26 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
               children: [
                 Expanded(
                   child: InkWell(
-                    onTap: _pickTimeDebut,
+                    onTap: () => _pickTimeDebut(isDarkMode),
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: isDarkMode
+                            ? Colors.blue[900]!.withOpacity(0.3)
+                            : Colors.blue.shade50,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.shade200),
+                        border: Border.all(
+                          color: isDarkMode ? Colors.blue[700]! : Colors.blue.shade200,
+                        ),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.access_time, color: Colors.blue.shade700, size: 24),
+                          Icon(
+                            Icons.access_time,
+                            color: isDarkMode ? Colors.blue[300] : Colors.blue.shade700,
+                            size: 24,
+                          ),
                           const SizedBox(width: 12),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -640,7 +680,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                                 'Début',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey.shade600,
+                                  color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -649,7 +689,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                                 _heureDebut.format(context),
                                 style: TextStyle(
                                   fontSize: 18,
-                                  color: Colors.blue.shade700,
+                                  color: isDarkMode ? Colors.blue[300] : Colors.blue.shade700,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -663,18 +703,26 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: InkWell(
-                    onTap: _pickTimeFin,
+                    onTap: () => _pickTimeFin(isDarkMode),
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: isDarkMode
+                            ? Colors.blue[900]!.withOpacity(0.3)
+                            : Colors.blue.shade50,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.shade200),
+                        border: Border.all(
+                          color: isDarkMode ? Colors.blue[700]! : Colors.blue.shade200,
+                        ),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.access_time, color: Colors.blue.shade700, size: 24),
+                          Icon(
+                            Icons.access_time,
+                            color: isDarkMode ? Colors.blue[300] : Colors.blue.shade700,
+                            size: 24,
+                          ),
                           const SizedBox(width: 12),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -683,7 +731,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                                 'Fin',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey.shade600,
+                                  color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -692,7 +740,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
                                 _heureFin.format(context),
                                 style: TextStyle(
                                   fontSize: 18,
-                                  color: Colors.blue.shade700,
+                                  color: isDarkMode ? Colors.blue[300] : Colors.blue.shade700,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -711,7 +759,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDarkMode) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -719,21 +767,24 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: isDarkMode
+                  ? Colors.blue[900]!.withOpacity(0.3)
+                  : Colors.blue.shade50,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.playlist_add_check,
               size: 80,
-              color: Colors.blue.shade300,
+              color: isDarkMode ? Colors.blue[400] : Colors.blue.shade300,
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Configurez votre séance',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
+              color: isDarkMode ? Colors.white : Colors.black,
             ),
           ),
           const SizedBox(height: 8),
@@ -742,7 +793,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade600,
+              color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
             ),
           ),
         ],
@@ -750,7 +801,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     );
   }
 
-  Widget _buildNoStudentsState() {
+  Widget _buildNoStudentsState(bool isDarkMode) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -758,21 +809,24 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.orange.shade50,
+              color: isDarkMode
+                  ? Colors.orange[900]!.withOpacity(0.3)
+                  : Colors.orange.shade50,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.person_off,
               size: 80,
-              color: Colors.orange.shade300,
+              color: isDarkMode ? Colors.orange[400] : Colors.orange.shade300,
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Aucun étudiant',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
+              color: isDarkMode ? Colors.white : Colors.black,
             ),
           ),
           const SizedBox(height: 8),
@@ -781,7 +835,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade600,
+              color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
             ),
           ),
         ],
@@ -789,7 +843,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     );
   }
 
-  Widget _buildStudentsList() {
+  Widget _buildStudentsList(bool isDarkMode) {
     return ListView.builder(
       itemCount: _students.length,
       itemBuilder: (context, index) {
@@ -799,6 +853,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           elevation: 2,
+          color: isDarkMode ? Colors.grey[850] : null,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -807,9 +862,9 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStudentHeader(student, state),
+                _buildStudentHeader(student, state, isDarkMode),
                 if (!state.present) const SizedBox(height: 16),
-                if (!state.present) _buildAbsenceFields(state),
+                if (!state.present) _buildAbsenceFields(state, isDarkMode),
               ],
             ),
           ),
@@ -818,7 +873,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     );
   }
 
-  Widget _buildStudentsGrid() {
+  Widget _buildStudentsGrid(bool isDarkMode) {
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -833,6 +888,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
 
         return Card(
           elevation: 2,
+          color: isDarkMode ? Colors.grey[850] : null,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -842,9 +898,9 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildStudentHeaderCompact(student, state),
+                _buildStudentHeaderCompact(student, state, isDarkMode),
                 const Spacer(),
-                if (!state.present) _buildHeuresFieldCompact(state),
+                if (!state.present) _buildHeuresFieldCompact(state, isDarkMode),
               ],
             ),
           ),
@@ -853,7 +909,8 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     );
   }
 
-  Widget _buildStudentHeader(Student student, _StudentPresenceState state) {
+
+  Widget _buildStudentHeader(Student student, _StudentPresenceState state, bool isDarkMode) {
     return Row(
       children: [
         Hero(
@@ -883,9 +940,10 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
             children: [
               Text(
                 '${student.nom} ${student.prenom}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
+                  color: isDarkMode ? Colors.white : Colors.black87,
                 ),
               ),
               const SizedBox(height: 4),
@@ -910,9 +968,11 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
         const SizedBox(width: 8),
         Container(
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: isDarkMode ? Colors.grey[800] : Colors.grey.shade50,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(
+              color: isDarkMode ? Colors.grey[700]! : Colors.grey.shade300,
+            ),
           ),
           child: ToggleButtons(
             isSelected: [state.present, !state.present],
@@ -928,7 +988,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
             borderRadius: BorderRadius.circular(12),
             selectedColor: Colors.white,
             fillColor: state.present ? Colors.green.shade500 : Colors.red.shade500,
-            color: Colors.grey.shade700,
+            color: isDarkMode ? Colors.grey[400] : Colors.grey.shade700,
             constraints: const BoxConstraints(minHeight: 40, minWidth: 80),
             children: [
               Padding(
@@ -958,7 +1018,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     );
   }
 
-  Widget _buildStudentHeaderCompact(Student student, _StudentPresenceState state) {
+  Widget _buildStudentHeaderCompact(Student student, _StudentPresenceState state, bool isDarkMode) {
     return Column(
       children: [
         CircleAvatar(
@@ -981,9 +1041,10 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
         const SizedBox(height: 8),
         Text(
           '${student.nom}',
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 13,
+            color: isDarkMode ? Colors.white : Colors.black87,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -992,7 +1053,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
           '${student.prenom}',
           style: TextStyle(
             fontSize: 12,
-            color: Colors.grey.shade600,
+            color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -1000,9 +1061,11 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: isDarkMode ? Colors.grey[800] : Colors.grey.shade50,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(
+              color: isDarkMode ? Colors.grey[700]! : Colors.grey.shade300,
+            ),
           ),
           child: ToggleButtons(
             isSelected: [state.present, !state.present],
@@ -1018,7 +1081,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
             borderRadius: BorderRadius.circular(10),
             selectedColor: Colors.white,
             fillColor: state.present ? Colors.green.shade500 : Colors.red.shade500,
-            color: Colors.grey.shade700,
+            color: isDarkMode ? Colors.grey[400] : Colors.grey.shade700,
             constraints: const BoxConstraints(minHeight: 32, minWidth: 50),
             children: const [
               Padding(
@@ -1036,7 +1099,7 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     );
   }
 
-  Widget _buildAbsenceFields(_StudentPresenceState state) {
+  Widget _buildAbsenceFields(_StudentPresenceState state, bool isDarkMode) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1061,9 +1124,10 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildHeuresField(state),
+          _buildHeuresField(state, isDarkMode),
           const SizedBox(height: 12),
           TextField(
+            style: TextStyle(color: isDarkMode ? Colors.black87 : Colors.black),
             decoration: InputDecoration(
               labelText: 'Remarque (optionnel)',
               hintText: 'Justification, raison...',
@@ -1094,8 +1158,9 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     );
   }
 
-  Widget _buildHeuresField(_StudentPresenceState state) {
+  Widget _buildHeuresField(_StudentPresenceState state, bool isDarkMode) {
     return TextField(
+      style: TextStyle(color: isDarkMode ? Colors.black87 : Colors.black),
       decoration: InputDecoration(
         labelText: 'Heures manquées',
         hintText: 'Ex: 2',
@@ -1123,8 +1188,9 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
     );
   }
 
-  Widget _buildHeuresFieldCompact(_StudentPresenceState state) {
+  Widget _buildHeuresFieldCompact(_StudentPresenceState state, bool isDarkMode) {
     return TextField(
+      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
       decoration: InputDecoration(
         labelText: 'Heures',
         hintText: '0',
@@ -1146,7 +1212,6 @@ class _PriseAppelPageState extends State<PriseAppelPage> {
       ),
       keyboardType: TextInputType.number,
       textAlign: TextAlign.center,
-      style: const TextStyle(fontWeight: FontWeight.bold),
       onChanged: (value) {
         final parsed = int.tryParse(value);
         state.heuresManquees = parsed ?? 0;
