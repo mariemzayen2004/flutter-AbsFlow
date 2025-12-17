@@ -31,7 +31,7 @@ class Subject extends HiveObject {
   static final List<Subject> initialSubjects = [
     Subject(
       id: 1,
-      nom: 'Algorithmique et Programmation',
+      nom: 'Algorithmique',
       enseignant: 'Mme. Nouha chaaben',
       volumeHoraire: 30,
       groupIds: [1, 2], 
@@ -41,28 +41,28 @@ class Subject extends HiveObject {
       nom: 'Bases de Données',
       enseignant: 'Mme. Nahla Fendri',
       volumeHoraire: 24,
-      groupIds: [1],
+      groupIds: [1,2,3,4,5,6,7,8,9],
     ),
     Subject(
       id: 3,
       nom: 'Réseaux Informatiques',
       enseignant: 'Mr. Riadh Turki',
       volumeHoraire: 26,
-      groupIds: [2],
+      groupIds: [1,2,3,4,5,6,7,8,9],
     ),
     Subject(
       id: 4,
       nom: 'Génie Logiciel',
       enseignant: 'Mme. Sourour Njeh',
       volumeHoraire: 28,
-      groupIds: [1, 2],
+      groupIds: [1,2,3,4,5,6,7,8,9],
     ),
     Subject(
       id: 5,
       nom: 'Cloud',
       enseignant: 'Mr. Kais Loukil',
       volumeHoraire: 28,
-      groupIds: [1, 2],
+      groupIds: [1,2,3,4,5,6,7,8,9],
     ),
   ];
 

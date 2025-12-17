@@ -404,13 +404,24 @@ class _HistoriquePageState extends State<HistoriquePage> {
 
   // Pour ouvrir le dialogue de modification de présence
   void _openEditDialog(Attendance attendance, Function setDialogState) {
+    // Contrôleur pour le champ "heures manquées"
+    final TextEditingController heuresController = TextEditingController(
+      text: attendance.heuresManquees > 0
+          ? attendance.heuresManquees.toString()
+          : '',
+    );
+
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            final bool isAbsent = !attendance.present;
+
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
               title: Row(
                 children: [
                   Container(
@@ -422,12 +433,16 @@ class _HistoriquePageState extends State<HistoriquePage> {
                     child: Icon(Icons.edit_note, color: Colors.orange.shade700),
                   ),
                   const SizedBox(width: 12),
-                  const Text('Modifier la présence', style: TextStyle(fontSize: 20)),
+                  const Text(
+                    'Modifier la présence',
+                    style: TextStyle(fontSize: 20),
+                  ),
                 ],
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Toggle Présent / Absent
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.grey.shade50,
@@ -436,24 +451,28 @@ class _HistoriquePageState extends State<HistoriquePage> {
                     ),
                     child: ToggleButtons(
                       isSelected: [attendance.present, !attendance.present],
-                      onPressed: (index) async {
+                      onPressed: (index) {
                         setState(() {
-                          // Met à jour l'état du bouton dans le dialogue
-                          attendance.present = index == 0;
-                          if (attendance.present) {
+                          final bool newPresent = index == 0;
+                          attendance.present = newPresent;
+
+                          if (newPresent) {
+                            // Si on met Présent → 0 heure manquée
                             attendance.heuresManquees = 0;
-                            attendance.remarque = '';
+                            heuresController.text = '';
                           }
                         });
-
-                        // Sauvegarde de l'état de l'attendance dans la base de données
-                        attendance.save();
                       },
                       borderRadius: BorderRadius.circular(12),
                       selectedColor: Colors.white,
-                      fillColor: attendance.present ? Colors.green.shade500 : Colors.red.shade500,
+                      fillColor: attendance.present
+                          ? Colors.green.shade500
+                          : Colors.red.shade500,
                       color: Colors.grey.shade700,
-                      constraints: const BoxConstraints(minHeight: 48, minWidth: 100),
+                      constraints: const BoxConstraints(
+                        minHeight: 48,
+                        minWidth: 100,
+                      ),
                       children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -461,7 +480,10 @@ class _HistoriquePageState extends State<HistoriquePage> {
                             children: const [
                               Icon(Icons.check_circle_outline, size: 20),
                               SizedBox(width: 8),
-                              Text('Présent', style: TextStyle(fontWeight: FontWeight.w600)),
+                              Text(
+                                'Présent',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
                             ],
                           ),
                         ),
@@ -471,30 +493,65 @@ class _HistoriquePageState extends State<HistoriquePage> {
                             children: const [
                               Icon(Icons.cancel_outlined, size: 20),
                               SizedBox(width: 8),
-                              Text('Absent', style: TextStyle(fontWeight: FontWeight.w600)),
+                              Text(
+                                'Absent',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
                             ],
                           ),
                         ),
                       ],
                     ),
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // Champ "Heures manquées" seulement si Absent
+                  if (isAbsent)
+                    TextField(
+                      controller: heuresController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Heures manquées',
+                        prefixIcon: const Icon(Icons.access_time),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        hintText: 'Ex: 2',
+                      ),
+                      onChanged: (value) {
+                        final parsed = int.tryParse(value) ?? 0;
+                        setState(() {
+                          attendance.heuresManquees = parsed;
+                        });
+                      },
+                    ),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text('Annuler', style: TextStyle(color: Colors.grey.shade600)),
+                  child: Text(
+                    'Annuler',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
                 ),
                 ElevatedButton.icon(
                   onPressed: () async {
-                    await _attendanceService.modifierAttendance(
-                      attendance.id,
-                      attendance.present,
-                      attendance.heuresManquees,
-                      attendance.remarque,
-                      attendance.justifie,
-                    );
-                    setDialogState(() {}); // Rafraîchir l'interface du dialogue après modification
+                    // Sécuriser encore les heures au moment de l’enregistrement
+                    if (!attendance.present) {
+                      final parsed = int.tryParse(heuresController.text) ?? 0;
+                      attendance.heuresManquees = parsed;
+                    } else {
+                      attendance.heuresManquees = 0;
+                    }
+
+                    // Utilise ta méthode asynchrone propre
+                    await _updateAttendanceStatus(attendance);
+
+                    // Rafraîchir la liste parente si besoin
+                    setDialogState(() {});
+
                     Navigator.pop(context);
                   },
                   icon: const Icon(Icons.save),
@@ -502,8 +559,13 @@ class _HistoriquePageState extends State<HistoriquePage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade700,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ],
@@ -513,6 +575,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
       },
     );
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

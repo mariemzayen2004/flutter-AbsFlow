@@ -52,30 +52,28 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
   }
 
   String _getStudentStatus(Student student) {
-    if (student.tauxAbsence >= 30) return 'Échec';
-    if (student.tauxAbsence >= 20) return 'Alerte';
-    return 'Normal';
+    return student.isActive ? 'Actif' : 'Inactif';
   }
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'Échec':
-        return Colors.red.shade600;
-      case 'Alerte':
-        return Colors.orange.shade600;
-      default:
+      case 'Actif':
         return Colors.green.shade600;
+      case 'Inactif':
+        return Colors.red.shade600; // ou Colors.grey.shade600 si tu préfères
+      default:
+        return Colors.grey.shade600;
     }
   }
 
   IconData _getStatusIcon(String status) {
     switch (status) {
-      case 'Échec':
-        return Icons.error;
-      case 'Alerte':
-        return Icons.warning;
-      default:
+      case 'Actif':
         return Icons.check_circle;
+      case 'Inactif':
+        return Icons.block; // ou Icons.pause_circle_filled
+      default:
+        return Icons.help_outline;
     }
   }
 
@@ -317,53 +315,6 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
   Widget _buildActionButtons(BuildContext context,Student student) {
     return Column(
       children: [
-        // Bouton Justifier
-        Container(
-          width: double.infinity,
-          height: 60,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.green.shade400, Colors.green.shade600],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.green.shade300.withOpacity(0.5),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _showJustifyAbsenceDialog(context),
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.check_circle_outline, color: Colors.white, size: 28),
-                    SizedBox(width: 12),
-                    Text(
-                      'Justifier une absence',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        
         // Bouton Historique
         Container(
           width: double.infinity,

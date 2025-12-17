@@ -1,4 +1,5 @@
 // lib/main.dart
+import 'package:abs_flow/models/student/student.dart';
 import 'package:abs_flow/services/alert_services.dart';
 import 'package:abs_flow/services/group_services.dart';
 import 'package:abs_flow/services/session_service.dart';
@@ -20,11 +21,13 @@ late final SessionService sessionService;
 late final SubjectService subjectService;
 late final SettingsService settingsService;
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 1. Initialisation de Hive via HiveService
   await HiveService.init();
+
 
   // 2. Récupération des box ouvertes
   final hive = HiveService.instance;
@@ -40,7 +43,7 @@ void main() async {
   // 4. Initialiser les paramètres par défaut
   settingsService.initialiserSettingsParDefaut();
 
-  // 5. Pré-remplir les étudiants si la box est vide
+  // // 5. Pré-remplir les étudiants si la box est vide
   await studentService.initStudentsIfEmpty();
 
   // 6. Lancer l'app
