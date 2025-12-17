@@ -2,7 +2,7 @@ import 'package:abs_flow/screens/add_cours.dart';
 import 'package:abs_flow/screens/historique.dart';
 import 'package:abs_flow/screens/send_alert_page.dart';
 import 'package:abs_flow/screens/add_ratt.dart';
-import 'package:abs_flow/screens/settings.dart';
+import 'package:abs_flow/screens/settings_page.dart';
 import 'package:flutter/material.dart';
 import 'prise_appel.dart';
 import 'students_list.dart';
