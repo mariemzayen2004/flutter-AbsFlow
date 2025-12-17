@@ -1,6 +1,7 @@
 import 'package:abs_flow/main.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../services/hive_service.dart';
 import '../services/session_service.dart';
 import '../services/attendance_service.dart';
@@ -10,6 +11,8 @@ import '../models/session/session.dart';
 import '../models/attendance/attendance.dart';
 import '../models/group/group.dart';
 import '../models/subject/subject.dart';
+import '../models/settings/settings.dart';
+import '../services/setting_service.dart';
 import '../services/subjectService.dart';
 
 class HistoriquePage extends StatefulWidget {
@@ -26,6 +29,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
   late StudentService _studentService;
   late GroupesService _groupesService;
   late SubjectService _subjectService;
+  late SettingsService _settingsService;
 
   // Variables d'état
   List<Session> _sessions = [];
@@ -38,9 +42,10 @@ class _HistoriquePageState extends State<HistoriquePage> {
     final hive = HiveService.instance;
     _sessionService = SessionService(hive.sessionsBox);
     _attendanceService = AttendanceService(hive.attendancesBox);
-    _studentService = StudentService(hive.studentsBox,attendanceService);
+    _studentService = StudentService(hive.studentsBox, attendanceService);
     _groupesService = GroupesService(hive.groupsBox);
     _subjectService = SubjectService(hive.subjectsBox);
+    _settingsService = SettingsService.instance;
 
     _loadSessions();
   }
@@ -131,24 +136,29 @@ class _HistoriquePageState extends State<HistoriquePage> {
   }
 
   // Afficher le dialogue de filtrage
-  void _showFilterDialog() {
+  void _showFilterDialog(bool isDarkMode) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
           title: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: isDarkMode ? Colors.blue[900] : Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(Icons.filter_list, color: Colors.blue.shade700),
               ),
               const SizedBox(width: 12),
-              const Text('Filtrer les séances', style: TextStyle(fontSize: 20)),
+              Text('Filtrer les séances', 
+                  style: TextStyle(
+                    fontSize: 20,
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  )),
             ],
           ),
           content: Column(
@@ -183,6 +193,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
                   Navigator.pop(context);
                   _filterSessions();
                 },
+                isDarkMode: isDarkMode,
               ),
             ],
           ),
@@ -202,7 +213,8 @@ class _HistoriquePageState extends State<HistoriquePage> {
               ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Fermer'),
+              child: Text('Fermer', 
+                  style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
             ),
           ],
         );
@@ -250,6 +262,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
     required String subtitle,
     required Color color,
     required VoidCallback onTap,
+    required bool isDarkMode,
   }) {
     return InkWell(
       onTap: onTap,
@@ -257,8 +270,9 @@ class _HistoriquePageState extends State<HistoriquePage> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: isDarkMode ? Colors.grey[700]! : Colors.grey.shade300),
           borderRadius: BorderRadius.circular(12),
+          color: isDarkMode ? Colors.grey[900] : Colors.white,
         ),
         child: Row(
           children: [
@@ -277,23 +291,26 @@ class _HistoriquePageState extends State<HistoriquePage> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
+                      color: isDarkMode ? Colors.white : Colors.black,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.grey.shade600,
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
                       fontSize: 13,
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
+            Icon(Icons.arrow_forward_ios, 
+                size: 16, 
+                color: isDarkMode ? Colors.grey[400] : Colors.grey.shade400),
           ],
         ),
       ),
@@ -301,7 +318,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
   }
 
   // Afficher les présences des étudiants dans une séance
-  void _showAttendanceDialog(List<Attendance> attendanceList) {
+  void _showAttendanceDialog(List<Attendance> attendanceList, bool isDarkMode) {
     showDialog(
       context: context,
       builder: (context) {
@@ -309,18 +326,23 @@ class _HistoriquePageState extends State<HistoriquePage> {
           builder: (context, setDialogState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
               title: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: isDarkMode ? Colors.blue[900] : Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(Icons.how_to_reg, color: Colors.blue.shade700),
                   ),
                   const SizedBox(width: 12),
-                  const Text('Modifier les présences', style: TextStyle(fontSize: 20)),
+                  Text('Modifier les présences', 
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      )),
                 ],
               ),
               content: SizedBox(
@@ -330,11 +352,15 @@ class _HistoriquePageState extends State<HistoriquePage> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.inbox, size: 64, color: Colors.grey.shade300),
+                            Icon(Icons.inbox, 
+                                size: 64, 
+                                color: isDarkMode ? Colors.grey[600] : Colors.grey.shade300),
                             const SizedBox(height: 16),
                             Text(
                               'Aucune présence enregistrée',
-                              style: TextStyle(color: Colors.grey.shade600),
+                              style: TextStyle(
+                                color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600
+                              ),
                             ),
                           ],
                         ),
@@ -342,7 +368,10 @@ class _HistoriquePageState extends State<HistoriquePage> {
                     : ListView.separated(
                         shrinkWrap: true,
                         itemCount: attendanceList.length,
-                        separatorBuilder: (context, index) => const Divider(height: 1),
+                        separatorBuilder: (context, index) => Divider(
+                          height: 1,
+                          color: isDarkMode ? Colors.grey[700] : Colors.grey.shade300,
+                        ),
                         itemBuilder: (context, index) {
                           final attendance = attendanceList[index];
                           final student = _studentService.getStudentById(attendance.studentId);  // Récupérer l'étudiant
@@ -363,7 +392,10 @@ class _HistoriquePageState extends State<HistoriquePage> {
                             ),
                             title: Text(
                               studentName,  // Afficher le nom et prénom de l'étudiant
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: isDarkMode ? Colors.white : Colors.black,
+                              ),
                             ),
                             subtitle: Text(
                               attendance.present ? 'Présent' : 'Absent',
@@ -378,12 +410,12 @@ class _HistoriquePageState extends State<HistoriquePage> {
                               icon: Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: Colors.blue.shade50,
+                                  color: isDarkMode ? Colors.blue[900] : Colors.blue.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(Icons.edit, color: Colors.blue.shade700, size: 20),
                               ),
-                              onPressed: () => _openEditDialog(attendance, setDialogState),
+                              onPressed: () => _openEditDialog(attendance, setDialogState, isDarkMode),
                             ),
                           );
                         },
@@ -392,7 +424,8 @@ class _HistoriquePageState extends State<HistoriquePage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Fermer'),
+                  child: Text('Fermer', 
+                      style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
                 ),
               ],
             );
@@ -403,7 +436,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
   }
 
   // Pour ouvrir le dialogue de modification de présence
-  void _openEditDialog(Attendance attendance, Function setDialogState) {
+  void _openEditDialog(Attendance attendance, Function setDialogState, bool isDarkMode) {
     showDialog(
       context: context,
       builder: (context) {
@@ -411,18 +444,23 @@ class _HistoriquePageState extends State<HistoriquePage> {
           builder: (context, setState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
               title: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
+                      color: isDarkMode ? Colors.orange[900] : Colors.orange.shade50,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(Icons.edit_note, color: Colors.orange.shade700),
                   ),
                   const SizedBox(width: 12),
-                  const Text('Modifier la présence', style: TextStyle(fontSize: 20)),
+                  Text('Modifier la présence', 
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      )),
                 ],
               ),
               content: Column(
@@ -430,9 +468,9 @@ class _HistoriquePageState extends State<HistoriquePage> {
                 children: [
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
+                      color: isDarkMode ? Colors.grey[900] : Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: isDarkMode ? Colors.grey[700]! : Colors.grey.shade300),
                     ),
                     child: ToggleButtons(
                       isSelected: [attendance.present, !attendance.present],
@@ -452,15 +490,15 @@ class _HistoriquePageState extends State<HistoriquePage> {
                       borderRadius: BorderRadius.circular(12),
                       selectedColor: Colors.white,
                       fillColor: attendance.present ? Colors.green.shade500 : Colors.red.shade500,
-                      color: Colors.grey.shade700,
+                      color: isDarkMode ? Colors.grey[300] : Colors.grey.shade700,
                       constraints: const BoxConstraints(minHeight: 48, minWidth: 100),
                       children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Row(
-                            children: const [
+                            children: [
                               Icon(Icons.check_circle_outline, size: 20),
-                              SizedBox(width: 8),
+                              const SizedBox(width: 8),
                               Text('Présent', style: TextStyle(fontWeight: FontWeight.w600)),
                             ],
                           ),
@@ -468,9 +506,9 @@ class _HistoriquePageState extends State<HistoriquePage> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Row(
-                            children: const [
+                            children: [
                               Icon(Icons.cancel_outlined, size: 20),
-                              SizedBox(width: 8),
+                              const SizedBox(width: 8),
                               Text('Absent', style: TextStyle(fontWeight: FontWeight.w600)),
                             ],
                           ),
@@ -483,7 +521,8 @@ class _HistoriquePageState extends State<HistoriquePage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text('Annuler', style: TextStyle(color: Colors.grey.shade600)),
+                  child: Text('Annuler', 
+                      style: TextStyle(color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600)),
                 ),
                 ElevatedButton.icon(
                   onPressed: () async {
@@ -513,203 +552,234 @@ class _HistoriquePageState extends State<HistoriquePage> {
       },
     );
   }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        title: const Text(
-          'Historique des Séances',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.blue.shade700, Colors.blue.shade500],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.filter_list),
-              ),
-              onPressed: () => _showFilterDialog(),
-            ),
-          ),
-        ],
-      ),
-      body:_sessions.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.event_busy, size: 80, color: Colors.grey.shade300),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Aucune séance trouvée',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Les séances apparaîtront ici',
-                        style: TextStyle(color: Colors.grey.shade500),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _sessions.length,
-                  itemBuilder: (context, index) {
-                    final session = _sessions[index];
-                    final attendanceList =
-                        _attendanceService.getAttendanceBySession(session.id);
+    return ValueListenableBuilder<Box<SettingsModel>>(
+      valueListenable: Hive.box<SettingsModel>('settings').listenable(),
+      builder: (context, box, _) {
+        final settings = _settingsService.getSettings();
+        final isDarkMode = settings.isDarkMode;
 
-                    return Card(
-                      elevation: 2,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () => _showAttendanceDialog(attendanceList),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [Colors.blue.shade400, Colors.blue.shade600],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(
-                                  Icons.event_note,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Séance ${session.date}',
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.people,
-                                            size: 14, color: Colors.grey.shade600),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '${attendanceList.length} étudiants',
-                                          style: TextStyle(
-                                            color: Colors.grey.shade700,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    // Afficher la matière et le groupe
-                                    const SizedBox(height: 4),
-                                    FutureBuilder<Subject?>(
-                                      future: _subjectService.getSubjectsById(session.subjectId),
-                                      builder: (context, snapshot) {
-                                        if (snapshot.connectionState == ConnectionState.waiting) {
-                                          return const CircularProgressIndicator();
-                                        }
-                                        if (!snapshot.hasData) {
-                                          return const Text('Matière non trouvée');
-                                        }
-                                        final subject = snapshot.data!;
-                                        return Row(
-                                          children: [
-                                            Icon(Icons.book, size: 14, color: Colors.grey.shade600),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Matière: ${subject.nom}',  // Affiche le nom de la matière
-                                              style: TextStyle(
-                                                color: Colors.grey.shade700,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(height: 4),
-                                    FutureBuilder<Group?>(
-                                      future: _groupesService.getGroupeById(session.groupId),
-                                      builder: (context, snapshot) {
-                                        if (snapshot.connectionState == ConnectionState.waiting) {
-                                          return const CircularProgressIndicator();
-                                        }
-                                        if (!snapshot.hasData) {
-                                          return const Text('Groupe non trouvé');
-                                        }
-                                        final group = snapshot.data!;
-                                        return Row(
-                                          children: [
-                                            Icon(Icons.group, size: 14, color: Colors.grey.shade600),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Groupe ${group.numGroup} : ${group.filiere} ${group.niveau} ',  // Affichage du nom du groupe
-                                              style: TextStyle(
-                                                color: Colors.grey.shade700,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                icon: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.shade50,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Icon(Icons.delete_outline,
-                                      color: Colors.red.shade700, size: 20),
-                                ),
-                                onPressed: () => _deleteSession(session),
-                              ),
-                            ],
+        return Scaffold(
+          appBar: AppBar(
+            elevation: 0,
+            title: const Text(
+              'Historique des Séances',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            flexibleSpace: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDarkMode
+                      ? [Colors.grey[850]!, Colors.grey[800]!]
+                      : [Colors.blue.shade700, Colors.blue.shade500],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+            actions: [
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                child: IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.filter_list),
+                  ),
+                  onPressed: () => _showFilterDialog(isDarkMode),
+                ),
+              ),
+            ],
+          ),
+          body: Container(
+            color: isDarkMode ? Colors.grey[900] : Colors.grey.shade50,
+            child: _sessions.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.event_busy, 
+                            size: 80, 
+                            color: isDarkMode ? Colors.grey[600] : Colors.grey.shade300),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Aucune séance trouvée',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: isDarkMode ? Colors.grey[300] : Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Les séances apparaîtront ici',
+                          style: TextStyle(
+                            color: isDarkMode ? Colors.grey[500] : Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _sessions.length,
+                    itemBuilder: (context, index) {
+                      final session = _sessions[index];
+                      final attendanceList =
+                          _attendanceService.getAttendanceBySession(session.id);
+
+                      return Card(
+                        elevation: 2,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        color: isDarkMode ? Colors.grey[800] : Colors.white,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => _showAttendanceDialog(attendanceList, isDarkMode),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [Colors.blue.shade400, Colors.blue.shade600],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.event_note,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Séance ${session.date}',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDarkMode ? Colors.white : Colors.black,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Icon(Icons.people,
+                                              size: 14, 
+                                              color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${attendanceList.length} étudiants',
+                                            style: TextStyle(
+                                              color: isDarkMode ? Colors.grey[400] : Colors.grey.shade700,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      // Afficher la matière et le groupe
+                                      const SizedBox(height: 4),
+                                      FutureBuilder<Subject?>(
+                                        future: _subjectService.getSubjectsById(session.subjectId),
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState == ConnectionState.waiting) {
+                                            return const CircularProgressIndicator();
+                                          }
+                                          if (!snapshot.hasData) {
+                                            return Text('Matière non trouvée',
+                                                style: TextStyle(
+                                                  color: isDarkMode ? Colors.grey[400] : Colors.grey.shade700
+                                                ));
+                                          }
+                                          final subject = snapshot.data!;
+                                          return Row(
+                                            children: [
+                                              Icon(Icons.book, 
+                                                  size: 14, 
+                                                  color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Matière: ${subject.nom}',  // Affiche le nom de la matière
+                                                style: TextStyle(
+                                                  color: isDarkMode ? Colors.grey[400] : Colors.grey.shade700,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                      const SizedBox(height: 4),
+                                      FutureBuilder<Group?>(
+                                        future: _groupesService.getGroupeById(session.groupId),
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState == ConnectionState.waiting) {
+                                            return const CircularProgressIndicator();
+                                          }
+                                          if (!snapshot.hasData) {
+                                            return Text('Groupe non trouvé',
+                                                style: TextStyle(
+                                                  color: isDarkMode ? Colors.grey[400] : Colors.grey.shade700
+                                                ));
+                                          }
+                                          final group = snapshot.data!;
+                                          return Row(
+                                            children: [
+                                              Icon(Icons.group, 
+                                                  size: 14, 
+                                                  color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Groupe ${group.numGroup} : ${group.filiere} ${group.niveau} ',  // Affichage du nom du groupe
+                                                style: TextStyle(
+                                                  color: isDarkMode ? Colors.grey[400] : Colors.grey.shade700,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: isDarkMode ? Colors.red[900] : Colors.red.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(Icons.delete_outline,
+                                        color: Colors.red.shade700, size: 20),
+                                  ),
+                                  onPressed: () => _deleteSession(session),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        );
+      },
     );
   }
 }

@@ -1,9 +1,11 @@
 import 'package:abs_flow/main.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';  // AJOUTÉ pour ValueListenableBuilder
 import '../models/attendance/attendance.dart';
 import '../models/student/student.dart';
 import '../models/group/group.dart';
+import '../models/settings/settings.dart';  // AJOUTÉ pour SettingsModel
 import '../services/student_service.dart';
 import '../services/group_services.dart';
 import '../services/attendance_service.dart';
@@ -128,69 +130,84 @@ class _StudentsListPageState extends State<StudentsListPage> {
 
     final filteredStudents = _filterStudents(_students);
 
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: const Text(
-          'Liste des Étudiants',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.blue.shade700, Colors.blue.shade500],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+    // ============= MODIFIÉ: Ajout du ValueListenableBuilder =============
+    return ValueListenableBuilder(
+      valueListenable: Hive.box<SettingsModel>('settings').listenable(),
+      builder: (context, Box<SettingsModel> box, _) {
+        final settings = _settingsService.getSettings();
+        final isDarkMode = settings.isDarkMode;
+
+        return Scaffold(
+          backgroundColor: isDarkMode ? Colors.grey[900] : Colors.grey.shade50,
+          appBar: AppBar(
+            title: const Text(
+              'Liste des Étudiants',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-          ),
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${filteredStudents.length} étudiants',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
+            elevation: 0,
+            flexibleSpace: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDarkMode 
+                      ? [Colors.grey[850]!, Colors.grey[800]!]
+                      : [Colors.blue.shade700, Colors.blue.shade500],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
             ),
+            actions: [
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${filteredStudents.length} étudiants',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _buildSearchAndFilterSection(),
-          Expanded(
-            child: filteredStudents.isEmpty
-                ? _buildEmptyState()
-                : _buildStudentListView(filteredStudents),
+          body: Column(
+            children: [
+              _buildSearchAndFilterSection(isDarkMode),  // MODIFIÉ: ajout isDarkMode
+              Expanded(
+                child: filteredStudents.isEmpty
+                    ? _buildEmptyState(isDarkMode)  // MODIFIÉ: ajout isDarkMode
+                    : _buildStudentListView(filteredStudents, isDarkMode),  // MODIFIÉ: ajout isDarkMode
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
+    // ================================================================
   }
 
-  Widget _buildSearchAndFilterSection() {
+  // ============= MODIFIÉ: ajout paramètre isDarkMode =============
+  Widget _buildSearchAndFilterSection(bool isDarkMode) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.white, Colors.grey.shade50],
+          colors: isDarkMode 
+              ? [Colors.grey[850]!, Colors.grey[900]!]
+              : [Colors.white, Colors.grey.shade50],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade300,
+            color: isDarkMode ? Colors.black26 : Colors.grey.shade300,
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -204,11 +221,11 @@ class _StudentsListPageState extends State<StudentsListPage> {
             // Barre de recherche moderne
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDarkMode ? Colors.grey[800] : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.shade200,
+                    color: isDarkMode ? Colors.black26 : Colors.grey.shade200,
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
@@ -216,13 +233,25 @@ class _StudentsListPageState extends State<StudentsListPage> {
               ),
               child: TextField(
                 controller: _searchController,
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white : Colors.black,
+                ),
                 decoration: InputDecoration(
                   hintText: 'Rechercher un étudiant...',
-                  hintStyle: TextStyle(color: Colors.grey.shade400),
-                  prefixIcon: Icon(Icons.search_rounded, color: Colors.blue.shade500, size: 24),
+                  hintStyle: TextStyle(
+                    color: isDarkMode ? Colors.grey[500] : Colors.grey.shade400,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search_rounded, 
+                    color: isDarkMode ? Colors.blue[300] : Colors.blue.shade500, 
+                    size: 24,
+                  ),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
-                          icon: Icon(Icons.clear, color: Colors.grey.shade600),
+                          icon: Icon(
+                            Icons.clear, 
+                            color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
+                          ),
                           onPressed: () {
                             setState(() {
                               _searchQuery = '';
@@ -236,7 +265,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: isDarkMode ? Colors.grey[800] : Colors.white,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 ),
                 onChanged: (value) {
@@ -251,14 +280,18 @@ class _StudentsListPageState extends State<StudentsListPage> {
             // Filtres de groupe
             Row(
               children: [
-                Icon(Icons.filter_list_rounded, color: Colors.grey.shade700, size: 20),
+                Icon(
+                  Icons.filter_list_rounded, 
+                  color: isDarkMode ? Colors.grey[400] : Colors.grey.shade700, 
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Filtrer par groupe',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
-                    color: Colors.grey.shade700,
+                    color: isDarkMode ? Colors.grey[300] : Colors.grey.shade700,
                   ),
                 ),
               ],
@@ -278,6 +311,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
                         _selectedGroupId = null;
                       });
                     },
+                    isDarkMode: isDarkMode,  // AJOUTÉ
                   ),
                   const SizedBox(width: 10),
                   ..._groupes.map((groupe) {
@@ -295,6 +329,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
                             _selectedGroupId = groupe.id;
                           });
                         },
+                        isDarkMode: isDarkMode,  // AJOUTÉ
                       ),
                     );
                   }).toList(),
@@ -307,11 +342,13 @@ class _StudentsListPageState extends State<StudentsListPage> {
     );
   }
 
+  // ============= MODIFIÉ: ajout paramètre isDarkMode =============
   Widget _buildFilterChip({
     required String label,
     required bool isSelected,
     required int count,
     required VoidCallback onTap,
+    required bool isDarkMode,  // AJOUTÉ
   }) {
     return InkWell(
       onTap: onTap,
@@ -321,21 +358,28 @@ class _StudentsListPageState extends State<StudentsListPage> {
         decoration: BoxDecoration(
           gradient: isSelected
               ? LinearGradient(
-                  colors: [Colors.blue.shade700, Colors.blue.shade500],
+                  colors: isDarkMode
+                      ? [Colors.blue[700]!, Colors.blue[600]!]
+                      : [Colors.blue.shade700, Colors.blue.shade500],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                 )
               : null,
-          color: isSelected ? null : Colors.white,
+          color: isSelected 
+              ? null 
+              : (isDarkMode ? Colors.grey[800] : Colors.white),
           borderRadius: BorderRadius.circular(25),
           border: Border.all(
-            color: isSelected ? Colors.transparent : Colors.grey.shade300,
+            color: isSelected 
+                ? Colors.transparent 
+                : (isDarkMode ? Colors.grey[700]! : Colors.grey.shade300),
             width: 1.5,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.blue.shade500.withOpacity(0.5),
+                    color: (isDarkMode ? Colors.blue[700]! : Colors.blue.shade500)
+                        .withOpacity(0.5),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -348,7 +392,9 @@ class _StudentsListPageState extends State<StudentsListPage> {
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey.shade700,
+                color: isSelected 
+                    ? Colors.white 
+                    : (isDarkMode ? Colors.grey[300] : Colors.grey.shade700),
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                 fontSize: 14,
               ),
@@ -359,13 +405,15 @@ class _StudentsListPageState extends State<StudentsListPage> {
               decoration: BoxDecoration(
                 color: isSelected
                     ? Colors.white.withOpacity(0.3)
-                    : Colors.grey.shade200,
+                    : (isDarkMode ? Colors.grey[700] : Colors.grey.shade200),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 '$count',
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey.shade700,
+                  color: isSelected 
+                      ? Colors.white 
+                      : (isDarkMode ? Colors.grey[300] : Colors.grey.shade700),
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                 ),
@@ -377,7 +425,8 @@ class _StudentsListPageState extends State<StudentsListPage> {
     );
   }
 
-  Widget _buildEmptyState() {
+  // ============= MODIFIÉ: ajout paramètre isDarkMode =============
+  Widget _buildEmptyState(bool isDarkMode) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -385,13 +434,13 @@ class _StudentsListPageState extends State<StudentsListPage> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.grey.shade200,
+              color: isDarkMode ? Colors.grey[800] : Colors.grey.shade200,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.search_off_rounded,
               size: 64,
-              color: Colors.grey.shade400,
+              color: isDarkMode ? Colors.grey[600] : Colors.grey.shade400,
             ),
           ),
           const SizedBox(height: 24),
@@ -400,7 +449,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.grey.shade700,
+              color: isDarkMode ? Colors.grey[300] : Colors.grey.shade700,
             ),
           ),
           const SizedBox(height: 8),
@@ -408,7 +457,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
             'Essayez de modifier vos filtres',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade500,
+              color: isDarkMode ? Colors.grey[500] : Colors.grey.shade500,
             ),
           ),
         ],
@@ -416,7 +465,8 @@ class _StudentsListPageState extends State<StudentsListPage> {
     );
   }
 
-  Widget _buildStudentListView(List<Student> students) {
+  // ============= MODIFIÉ: ajout paramètre isDarkMode =============
+  Widget _buildStudentListView(List<Student> students, bool isDarkMode) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: students.length,
@@ -428,11 +478,11 @@ class _StudentsListPageState extends State<StudentsListPage> {
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDarkMode ? Colors.grey[850] : Colors.white,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.shade200,
+                color: isDarkMode ? Colors.black26 : Colors.grey.shade200,
                 blurRadius: 8,
                 offset: const Offset(0, 3),
               ),
@@ -463,14 +513,18 @@ class _StudentsListPageState extends State<StudentsListPage> {
                       height: 60,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [Colors.blue.shade700, Colors.blue.shade500],
+                          colors: isDarkMode
+                              ? [Colors.blue[700]!, Colors.blue[500]!]
+                              : [Colors.blue.shade700, Colors.blue.shade500],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.blue.shade500.withOpacity(0.4),
+                            color: (isDarkMode 
+                                ? Colors.blue[700]! 
+                                : Colors.blue.shade500).withOpacity(0.4),
                             blurRadius: 8,
                             offset: const Offset(0, 3),
                           ),
@@ -504,10 +558,10 @@ class _StudentsListPageState extends State<StudentsListPage> {
                         children: [
                           Text(
                             '${student.prenom} ${student.nom}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                              color: isDarkMode ? Colors.white : Colors.black87,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -516,14 +570,14 @@ class _StudentsListPageState extends State<StudentsListPage> {
                               Icon(
                                 Icons.badge_outlined,
                                 size: 14,
-                                color: Colors.grey.shade600,
+                                color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 student.matricule,
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.grey.shade600,
+                                  color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
                                 ),
                               ),
                             ],
@@ -534,14 +588,14 @@ class _StudentsListPageState extends State<StudentsListPage> {
                               Icon(
                                 Icons.groups_outlined,
                                 size: 14,
-                                color: Colors.grey.shade600,
+                                color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 _getGroupDisplayName(student.groupId!),
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.grey.shade600,
+                                  color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
                                 ),
                               ),
                             ],
@@ -571,7 +625,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
                     Icon(
                       Icons.arrow_forward_ios_rounded,
                       size: 16,
-                      color: Colors.grey.shade400,
+                      color: isDarkMode ? Colors.grey[600] : Colors.grey.shade400,
                     ),
                   ],
                 ),
