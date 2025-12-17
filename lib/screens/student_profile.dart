@@ -1,9 +1,12 @@
+// lib/screens/student_profile.dart
+
 import 'package:abs_flow/main.dart';
 import 'package:abs_flow/models/session/session.dart';
 import 'package:abs_flow/models/subject/subject.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+
 import '../models/attendance/attendance.dart';
 import '../models/student/student.dart';
 import '../models/settings/settings.dart';
@@ -37,24 +40,19 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
   @override
   void initState() {
     super.initState();
-    _initializeServices();
+
+    // 🔹 On réutilise les services globaux définis dans main.dart
+    _studentService = studentService;
+    _attendanceService = attendanceService;
+    _sessionService = sessionService;
+    _subjectService = subjectService;
+    _settingsService = settingsService;
+
+    // 🔹 Met à jour le total des heures d'absence du student au chargement
+    _studentService.updateTotalHeuresAbsence(widget.student.id);
   }
 
-  Future<void> _initializeServices() async {
-    final studentBox = await Hive.openBox<Student>('students');
-    final attendanceBox = await Hive.openBox<Attendance>('attendances');
-    final sessionBox = await Hive.openBox<Session>('sessions');
-    final subjectBox = await Hive.openBox<Subject>('subjects');
-
-    _studentService = StudentService(studentBox, attendanceService);
-    _attendanceService = AttendanceService(attendanceBox);
-    _sessionService = SessionService(sessionBox);
-    _subjectService = SubjectService(subjectBox);
-    _settingsService = SettingsService.instance;
-
-    await _studentService.updateTotalHeuresAbsence(widget.student.id);
-  }
-
+  // 🔹 Statut basé sur isActive
   String _getStudentStatus(Student student) {
     return student.isActive ? 'Actif' : 'Inactif';
   }
@@ -64,7 +62,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       case 'Actif':
         return Colors.green.shade600;
       case 'Inactif':
-        return Colors.red.shade600; // ou Colors.grey.shade600 si tu préfères
+        return Colors.red.shade600;
       default:
         return Colors.grey.shade600;
     }
@@ -75,10 +73,11 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       case 'Actif':
         return Icons.check_circle;
       case 'Inactif':
-        return Icons.block; // ou Icons.pause_circle_filled
+        return Icons.block;
       default:
         return Icons.help_outline;
     }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,8 +87,8 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
         final settings = _settingsService.getSettings();
         final isDarkMode = settings.isDarkMode;
 
-        final Student student = widget.student;
-        final status = _getStudentStatus(widget.student);
+        final student = widget.student;
+        final status = _getStudentStatus(student);
         final statusColor = _getStatusColor(status);
 
         return Scaffold(
@@ -118,7 +117,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
               children: [
                 // En-tête avec photo et statut
                 _buildHeader(status, statusColor, isDarkMode),
-                
+
                 // Contenu principal
                 Padding(
                   padding: const EdgeInsets.all(20),
@@ -126,14 +125,22 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Informations personnelles
-                      _buildSectionTitle('Informations Personnelles', Icons.person, isDarkMode),
+                      _buildSectionTitle(
+                        'Informations personnelles',
+                        Icons.person,
+                        isDarkMode,
+                      ),
                       const SizedBox(height: 16),
                       _buildInfoCard(isDarkMode),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Actions rapides
-                      _buildSectionTitle('Actions Rapides', Icons.flash_on, isDarkMode),
+                      _buildSectionTitle(
+                        'Actions rapides',
+                        Icons.flash_on,
+                        isDarkMode,
+                      ),
                       const SizedBox(height: 16),
                       _buildActionButtons(context, student, isDarkMode),
                     ],
@@ -146,6 +153,8 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       },
     );
   }
+
+  // ====== UI building methods ======
 
   Widget _buildHeader(String status, Color statusColor, bool isDarkMode) {
     return Container(
@@ -164,7 +173,8 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
         ),
         boxShadow: [
           BoxShadow(
-            color: (isDarkMode ? Colors.grey[900]! : Colors.blue.shade300).withOpacity(0.5),
+            color: (isDarkMode ? Colors.grey[900]! : Colors.blue.shade300)
+                .withOpacity(0.5),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -175,7 +185,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
           padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
           child: Column(
             children: [
-              // Photo de profil avec bordure animée
+              // Photo de profil
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -192,7 +202,8 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                   backgroundColor: Colors.white,
                   child: CircleAvatar(
                     radius: 65,
-                    backgroundColor: isDarkMode ? Colors.grey[800] : Colors.blue.shade100,
+                    backgroundColor:
+                        isDarkMode ? Colors.grey[800] : Colors.blue.shade100,
                     backgroundImage: widget.student.photoPath != null
                         ? AssetImage(widget.student.photoPath!)
                         : null,
@@ -202,7 +213,9 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                             style: TextStyle(
                               fontSize: 45,
                               fontWeight: FontWeight.bold,
-                              color: isDarkMode ? Colors.white : Colors.blue.shade700,
+                              color: isDarkMode
+                                  ? Colors.white
+                                  : Colors.blue.shade700,
                             ),
                           )
                         : null,
@@ -210,8 +223,8 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                 ),
               ),
               const SizedBox(height: 20),
-              
-              // Nom de l'étudiant
+
+              // Nom
               Text(
                 '${widget.student.prenom} ${widget.student.nom}',
                 style: const TextStyle(
@@ -223,10 +236,11 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
-              
-              // Badge de statut amélioré
+
+              // Badge de statut
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(25),
@@ -270,9 +284,11 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
             color: isDarkMode ? Colors.grey[800] : Colors.blue.shade100,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, 
-              color: isDarkMode ? Colors.blue[300] : Colors.blue.shade700, 
-              size: 20),
+          child: Icon(
+            icon,
+            color: isDarkMode ? Colors.blue[300] : Colors.blue.shade700,
+            size: 20,
+          ),
         ),
         const SizedBox(width: 12),
         Text(
@@ -336,23 +352,21 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, Student student, bool isDarkMode) {
+  Widget _buildActionButtons(
+      BuildContext context, Student student, bool isDarkMode) {
     return Column(
       children: [
-        // Bouton Justifier
+        // Bouton Historique
         Container(
           width: double.infinity,
           height: 60,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.green.shade400, Colors.green.shade600],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
+            color: isDarkMode ? Colors.grey[850] : Colors.white,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.blue.shade300, width: 2),
             boxShadow: [
               BoxShadow(
-                color: Colors.green.shade300.withOpacity(0.5),
+                color: Colors.grey.shade200,
                 blurRadius: 10,
                 offset: const Offset(0, 5),
               ),
@@ -361,19 +375,20 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () => _showJustifyAbsenceDialog(context, isDarkMode),
               borderRadius: BorderRadius.circular(16),
+              onTap: () => _showAbsenceHistory(context, student, isDarkMode),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.check_circle_outline, color: Colors.white, size: 28),
-                    SizedBox(width: 12),
+                  children: [
+                    Icon(Icons.history_rounded,
+                        color: Colors.blue.shade600, size: 28),
+                    const SizedBox(width: 12),
                     Text(
-                      'Justifier une absence',
+                      'Historique d\'absences',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Colors.blue.shade600,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -388,34 +403,35 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
     );
   }
 
-  
+  // ====== Historique des absences ======
 
-  void _showAbsenceHistory(BuildContext context, Student student, bool isDarkMode) async {
+  void _showAbsenceHistory(
+      BuildContext context, Student student, bool isDarkMode) async {
     final studentId = student.id;
     final attendances = _attendanceService.getAttendanceByStudent(studentId);
 
-    // Filtrer les absences 
-    final absences = attendances.where((attendance) => !attendance.present).toList();
+    // Garder uniquement les absences
+    final absences =
+        attendances.where((attendance) => !attendance.present).toList();
 
-    // Récupérer les informations des séances et matières (asynchrone)
-    List<Widget> absenceWidgets = [];
+    // Construire la liste des widgets avec info séance + matière
+    final List<Widget> absenceWidgets = [];
+
     for (var attendance in absences) {
-      // Attendre la récupération de la séance
-      final session = await _sessionService.getSessionById(attendance.sessionId);
+      final session =
+          await _sessionService.getSessionById(attendance.sessionId);
 
-      // Vérifier si la session est récupérée
       if (session != null) {
-        // Récupérer la matière associée à la séance
-        final subject = await _subjectService.getSubjectById(session.subjectId);
+        final Subject? subject =
+            _subjectService.getSubjectById(session.subjectId);
 
-        // Récupérer la date de la séance
-        final formattedDate = session.date != null
-            ? "${session.date.day}/${session.date.month}/${session.date.year}"
-            : 'Date inconnue';
+        final date = session.date;
+        final formattedDate = '${date.day}/${date.month}/${date.year}';
 
         absenceWidgets.add(
           ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: CircleAvatar(
               backgroundColor: Colors.red.shade100,
               child: Icon(
@@ -424,7 +440,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
               ),
             ),
             title: Text(
-              'Séance du $formattedDate', // Afficher la date de la séance
+              'Séance du $formattedDate',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: isDarkMode ? Colors.white : Colors.black,
@@ -434,10 +450,10 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Matière: ${subject?.nom ?? 'Inconnue'}', // Afficher le nom de la matière
+                  'Matière : ${subject?.nom ?? 'Inconnue'}',
                   style: TextStyle(
-                    fontSize: 12, 
-                    color: isDarkMode ? Colors.grey[400] : Colors.grey
+                    fontSize: 12,
+                    color: isDarkMode ? Colors.grey[400] : Colors.grey,
                   ),
                 ),
                 Text(
@@ -454,12 +470,13 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       }
     }
 
-    // Afficher le dialogue avec les absences
+    // Afficher la boîte de dialogue
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
           title: Row(
             children: [
@@ -469,16 +486,20 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                   color: isDarkMode ? Colors.blue[900] : Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.history, 
-                    color: Colors.blue.shade700, 
-                    size: 48),
+                child: Icon(
+                  Icons.history,
+                  color: Colors.blue.shade700,
+                  size: 32,
+                ),
               ),
               const SizedBox(width: 12),
-              Text('Absences de ${student.prenom}', 
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: isDarkMode ? Colors.white : Colors.black,
-                  )),
+              Text(
+                'Absences de ${student.prenom}',
+                style: TextStyle(
+                  fontSize: 20,
+                  color: isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
             ],
           ),
           content: SizedBox(
@@ -488,14 +509,20 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.inbox, 
-                            size: 64, 
-                            color: isDarkMode ? Colors.grey[600] : Colors.grey.shade300),
+                        Icon(
+                          Icons.inbox,
+                          size: 64,
+                          color: isDarkMode
+                              ? Colors.grey[600]
+                              : Colors.grey.shade300,
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'Aucune absence enregistrée',
                           style: TextStyle(
-                            color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600
+                            color: isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.grey.shade600,
                           ),
                         ),
                       ],
@@ -506,7 +533,9 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                     itemCount: absenceWidgets.length,
                     separatorBuilder: (context, index) => Divider(
                       height: 1,
-                      color: isDarkMode ? Colors.grey[700] : Colors.grey.shade300,
+                      color: isDarkMode
+                          ? Colors.grey[700]
+                          : Colors.grey.shade300,
                     ),
                     itemBuilder: (context, index) {
                       return absenceWidgets[index];
@@ -516,10 +545,12 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Fermer',
-                  style: TextStyle(
-                    color: isDarkMode ? Colors.white : Colors.black
-                  )),
+              child: Text(
+                'Fermer',
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
             ),
           ],
         );
@@ -527,6 +558,8 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
     );
   }
 }
+
+// ====== Widgets réutilisables ======
 
 class InfoRow extends StatelessWidget {
   final IconData icon;
@@ -552,9 +585,11 @@ class InfoRow extends StatelessWidget {
             color: isDarkMode ? Colors.grey[700] : Colors.blue.shade50,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, 
-              color: isDarkMode ? Colors.blue[300] : Colors.blue.shade700, 
-              size: 24),
+          child: Icon(
+            icon,
+            color: isDarkMode ? Colors.blue[300] : Colors.blue.shade700,
+            size: 24,
+          ),
         ),
         const SizedBox(width: 16),
         Expanded(

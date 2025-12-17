@@ -436,7 +436,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
   }
 
   // Pour ouvrir le dialogue de modification de présence
-  void _openEditDialog(Attendance attendance, Function setDialogState) {
+  void _openEditDialog(Attendance attendance, Function setDialogState, bool isDarkMode) {
     // Contrôleur pour le champ "heures manquées"
     final TextEditingController heuresController = TextEditingController(
       text: attendance.heuresManquees > 0

@@ -38,6 +38,7 @@ void main() async {
   alertService = AlertService(hive.alertsBox, studentService);
   groupesService = GroupesService(hive.groupsBox);
   sessionService = SessionService(hive.sessionsBox);
+  subjectService = SubjectService(hive.subjectsBox);
   settingsService = SettingsService.instance;
 
   // 4. Initialiser les paramètres par défaut
