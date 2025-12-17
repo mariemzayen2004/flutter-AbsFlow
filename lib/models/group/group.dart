@@ -21,7 +21,7 @@ class Group extends HiveObject {
     required this.filiere,
     required this.niveau,
   });
-  // Liste des groupes
+  //Liste des groupes
   static final List<Group> initialGroups = [
     Group(
       id: 1,

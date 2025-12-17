@@ -41,7 +41,7 @@ class Student extends HiveObject {
     this.totalHeuresAbsence =0,
     this.tauxAbsence =0,
   });
-  // Liste d'étudiants 
+  //Liste d'étudiants 
   static final List<Student> initialStudents = [
     Student(
       id: 1,
@@ -49,6 +49,7 @@ class Student extends HiveObject {
       nom: 'Ben Ali',
       prenom: 'Amine',
       groupId: 1,
+      photoPath: 'assets/images/etu_gar6.jpg'
     ),
     Student(
       id: 2,
@@ -56,6 +57,7 @@ class Student extends HiveObject {
       nom: 'Trabelsi',
       prenom: 'Sarra',
       groupId: 1,
+      photoPath: 'assets/images/etu_fille6.png'
     ),
     Student(
       id: 3,
@@ -63,6 +65,7 @@ class Student extends HiveObject {
       nom: 'Gharbi',
       prenom: 'Youssef',
       groupId: 1,
+      photoPath: 'assets/images/etu_gar2.jpg'
     ),
     Student(
       id: 4,
@@ -70,6 +73,7 @@ class Student extends HiveObject {
       nom: 'Mansour',
       prenom: 'Meriem',
       groupId: 2,
+      photoPath: 'assets/images/etu_fille.jpg'
     ),
     Student(
       id: 5,
@@ -77,6 +81,7 @@ class Student extends HiveObject {
       nom: 'Khaldi',
       prenom: 'Oussama',
       groupId: 2,
+      photoPath: 'assets/images/etu_gar3.png'
     ),
     Student(
       id: 6,
@@ -91,6 +96,7 @@ class Student extends HiveObject {
       nom: 'Jaziri',
       prenom: 'Malek',
       groupId: 3,
+      photoPath: 'assets/images/etu_fille3.jpg'
     ),
     Student(
       id: 8,
@@ -105,6 +111,63 @@ class Student extends HiveObject {
       nom: 'Chebbi',
       prenom: 'Amina',
       groupId: 3,
+      photoPath: 'assets/images/etu_fille7.jpg'
+    ),
+    Student(
+      id: 10,
+      matricule: '2024-010',
+      nom: 'Njeh',
+      prenom: 'Emna',
+      groupId: 4,
+      photoPath: 'assets/images/etu_fille8.jpg'
+    ),
+    Student(
+      id: 11,
+      matricule: '2024-011',
+      nom: 'Feki',
+      prenom: 'Fatma',
+      groupId: 4,
+      photoPath: 'assets/images/etu_fille9.jpg'
+    ),
+    Student(
+      id: 12,
+      matricule: '2024-012',
+      nom: 'Chaaben',
+      prenom: 'Ala',
+      groupId: 4,
+      photoPath: 'assets/images/etu_gar4.png'
+    ),
+    Student(
+      id: 13,
+      matricule: '2024-013',
+      nom: 'Kammoun',
+      prenom: 'Eya',
+      groupId: 5,
+      photoPath: 'assets/images/etu_fille2.jpg'
+    ),
+    Student(
+      id: 14,
+      matricule: '2024-014',
+      nom: 'Ben massaoud',
+      prenom: 'Wiem',
+      groupId: 5,
+      photoPath: 'assets/images/etu_fille4.jpg'
+    ),
+    Student(
+      id: 15,
+      matricule: '2024-015',
+      nom: 'Ghozzi',
+      prenom: 'Ahmed',
+      groupId: 5,
+      photoPath: 'assets/images/etu_gar7.jpg'
+    ),
+    Student(
+      id: 16,
+      matricule: '2024-016',
+      nom: 'Salmen',
+      prenom: 'Mounir',
+      groupId: 6,
+      photoPath: 'assets/images/etu_gar5.jpg'
     ),
   ];
 }

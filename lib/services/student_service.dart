@@ -22,7 +22,7 @@ class StudentService {
     _attendanceService = service;
   }
 
-  // À appeler au démarrage de l'appli
+  // // À appeler au démarrage de l'appli
   Future<void> initStudentsIfEmpty() async {
     if (_studentBox.isNotEmpty) {
       return; // il y a déjà des données, on ne touche à rien
@@ -32,6 +32,7 @@ class StudentService {
       await _studentBox.add(student);
     }
   }
+
 
   // getStudents()
   List<Student> getStudents() {

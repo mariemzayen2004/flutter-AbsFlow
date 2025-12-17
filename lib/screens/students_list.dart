@@ -46,7 +46,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
     _attendanceService = AttendanceService(attendanceBox);
     _settingsService = SettingsService.instance;
 
-    await _studentService.initStudentsIfEmpty();
+    await studentService.initStudentsIfEmpty();  
     await _groupesService.insertGroups();
 
     final groupes = await _groupesService.getGroupes();
